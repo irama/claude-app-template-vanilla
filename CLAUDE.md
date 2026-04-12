@@ -54,12 +54,18 @@ Read [`docs/ui-patterns.md`](docs/ui-patterns.md) **before writing any component
 
 Read [`docs/performance.md`](docs/performance.md) before building data-fetching, image, font, or bundle-heavy features. Key rules: no `select('*')`, parallelize server fetches, lazy-import heavy packages, no debug `console.log` in data paths.
 
+## Accessibility & Responsive Design
+
+Read [`docs/accessibility.md`](docs/accessibility.md) before writing any UI. Three mandatory gates on every UI task: mobile layout at 375px, WCAG AA contrast in both light and dark modes, keyboard navigation with visible focus rings.
+
 ## Agents & Commands
 
 Read [`docs/agents.md`](docs/agents.md) for the full list of available subagents and slash commands with guidance on when to use each.
 
 **Key triggers:**
 
+- Any UI task → complete the mobile/contrast/keyboard checklists in `docs/accessibility.md`
+- Any task adding/changing/removing user-facing functionality → update `PROJECT_SPEC.md` before finishing
 - New component/route → write its test in the same task
 - Auth/API/data task → security spot-check with `security-reviewer` before finishing
 - End of session → `/review`

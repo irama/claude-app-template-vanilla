@@ -23,6 +23,8 @@ This project ships with specialised subagents and slash commands. Use them proac
 
 ## Quality Gates
 
+- **Any UI task**: complete the mobile/contrast/keyboard checklists in [`docs/accessibility.md`](accessibility.md) before finishing.
+- **Any task that adds, changes, or removes user-facing functionality**: update `PROJECT_SPEC.md` to reflect the current state before marking the task complete.
 - **Before finishing any task that touches auth, API routes, or data mutation**: run a quick security spot-check using the `security-reviewer` subagent.
 - **Run `/review` at the end of significant sessions** to catch debug leftovers, TypeScript errors, and failing tests before committing.
 - **Run `/security-check` before the first deploy of a new feature** that handles user data, auth, or payments.
