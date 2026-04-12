@@ -47,6 +47,28 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "terminal-notifier -message \"Task completed in $(basename \"$PWD\")\" -title \"Claude Code\" -sender com.microsoft.VSCode"
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "terminal-notifier -message \"Permission required in $(basename \"$PWD\")\" -title \"Claude Code\" -sender com.microsoft.VSCode"
+          }
+        ]
+      }
     ]
   }
 }
