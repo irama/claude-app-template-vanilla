@@ -18,43 +18,6 @@ Read `PROJECT_SPEC.md` before writing any code. Treat it as the source of truth 
 - **Deployment:** Vercel
 - **Database/Auth:** [e.g. Supabase — update per project]
 
-## Conventions
-
-### TypeScript
-- Strict mode always — no `any` types
-- Prefer `type` over `interface` for simple shapes; use `interface` for objects that may be extended
-- Export types from a central `src/types/` directory
-
-### Components
-- One component per file, co-located with its test
-- File names match component names (PascalCase)
-- Props typed explicitly — never infer from usage
-
-### Styling
-- Tailwind CSS only — no inline styles, no CSS modules unless unavoidable
-- Mobile-first responsive design
-- Use `cn()` utility for conditional class merging (install `clsx` + `tailwind-merge`)
-
-### API / Server
-- Validate all inputs at the boundary — never trust client data
-- Use Zod for runtime validation
-- Return consistent error shapes: `{ error: string, code: string }`
-- Correct HTTP status codes always
-
-### Testing
-- Co-locate tests: `Button.tsx` → `Button.test.tsx`
-- Test user behaviour, not implementation details
-- Arrange → Act → Assert pattern
-- Every test: happy path + invalid input + (if applicable) auth failure
-
-### Commits
-Use conventional commits: `type(scope): description`
-Types: `feat` / `fix` / `refactor` / `test` / `docs` / `chore` / `style`
-Examples:
-- `feat(auth): add Google OAuth login`
-- `fix(api): handle missing user ID in profile endpoint`
-- `chore(deps): update Tailwind to v4`
-
 ## File Structure
 
 ```
@@ -68,9 +31,38 @@ src/
   test/             # Test setup and shared test utilities
 ```
 
+## Conventions
+
+Read [`docs/conventions.md`](docs/conventions.md) for TypeScript, component, styling, API, testing, and commit rules.
+Read [`docs/testing-workflow.md`](docs/testing-workflow.md) for when to write tests first vs. alongside (pragmatic TDD).
+
+**Key rules to always follow:**
+
+- Strict TypeScript — no `any`
+- Tests are mandatory alongside new code — write them before marking a task complete
+- Utilities and API failure cases: write tests first, then implement
+- Zod validation on all API inputs
+- Conventional commits
+
+## UI Patterns
+
+Before building any new UI, check [`docs/ui-patterns.md`](docs/ui-patterns.md) for existing reusable components. Update the registry when you add a new one.
+
+## Agents & Commands
+
+Read [`docs/agents.md`](docs/agents.md) for the full list of available subagents and slash commands with guidance on when to use each.
+
+**Key triggers:**
+
+- New component/route → write its test in the same task
+- Auth/API/data task → security spot-check with `security-reviewer` before finishing
+- End of session → `/review`
+- Pre-deploy on sensitive features → `/security-check`
+
 ## Permissions
 
 You have permission to — no need to ask:
+
 - Read, write, and delete any file in this project directory
 - Run npm scripts (`dev`, `build`, `test`, `lint`, `typecheck`, `check`)
 - Run git commands (`add`, `commit`, `status`, `log`, `diff`, `branch`, `checkout`)
@@ -78,6 +70,7 @@ You have permission to — no need to ask:
 - Create and modify configuration files
 
 Do NOT:
+
 - Commit or push to remote without being asked
 - Delete the `.husky/`, `.github/`, or `.claude/` directories
 - Hardcode secrets, API keys, or credentials — use environment variables
@@ -91,6 +84,7 @@ After completing a task, briefly state: what you built, any deviations from the 
 ## Environment Variables
 
 Never hardcode secrets. Always use:
+
 - `.env.local` for local development (gitignored)
 - Vercel environment variables for deployed environments
 

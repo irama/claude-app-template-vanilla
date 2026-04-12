@@ -1,4 +1,6 @@
 {
+  "autocompact_percentage_override": 75,
+  "BASH_MAX_OUTPUT_LENGTH": "150000",
   "permissions": {
     "allow": [
       "Bash(npm run *)",
@@ -15,7 +17,12 @@
       "Bash(git push --force*)",
       "Bash(rm -rf /)",
       "Bash(curl * | bash)",
-      "Bash(wget * | bash)"
+      "Bash(wget * | bash)",
+      "Read(node_modules/**)",
+      "Read(dist/**)",
+      "Read(.next/**)",
+      "Read(coverage/**)",
+      "Read(*.lock)"
     ]
   },
   "hooks": {
@@ -36,7 +43,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "FILE=\"$CLAUDE_TOOL_INPUT_FILE_PATH\"; if [[ -n \"$FILE\" ]]; then grep -qE '(sk-[a-zA-Z0-9]{20,}|AKIA[A-Z0-9]{16}|password\\s*=\\s*[\"\\x27][^\"\\x27]{4,})' \"$FILE\" 2>/dev/null && echo \"WARNING: Potential hardcoded secret detected in $FILE\" || true; fi"
+            "command": "FILE=\"$CLAUDE_TOOL_INPUT_FILE_PATH\"; if [[ -n \"$FILE\" && \"$FILE\" != *.env.example && \"$FILE\" != *.test.* ]]; then grep -qE '(sk-[a-zA-Z0-9]{20,}|AKIA[A-Z0-9]{16}|ghp_[a-zA-Z0-9]{36}|ghs_[a-zA-Z0-9]{36}|eyJ[a-zA-Z0-9_-]{10,}\\.[a-zA-Z0-9_-]{10,}\\.[a-zA-Z0-9_-]{10,}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|password[\"\\x27]?\\s*[:=]\\s*[\"\\x27][^\"\\x27${}]{6,}[\"\\x27]|secret[\"\\x27]?\\s*[:=]\\s*[\"\\x27][^\"\\x27${}]{6,}[\"\\x27]|api[_-]?key[\"\\x27]?\\s*[:=]\\s*[\"\\x27][^\"\\x27${}]{6,}[\"\\x27])' \"$FILE\" 2>/dev/null && echo \"WARNING: Potential hardcoded secret detected in $FILE — check before saving\" || true; fi"
           }
         ]
       }
