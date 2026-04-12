@@ -3,6 +3,8 @@
 > This is a reusable template for building production-quality Next.js apps with Claude Code.
 > When starting a new project: update this file with project-specific details, fill in PROJECT_SPEC.md, then delete this note.
 
+> **How this file is structured — progressive disclosure:** This file stays short by linking out to `docs/*.md` for detail. If you add a new practice area, create `docs/that-area.md` and add a one-line link here — do not add inline content. Apply the same principle to agent definitions: keep the agent prompt concise and link to or inline only what that agent specifically needs.
+
 ## Project Overview
 
 **App name:** [APP_NAME]
@@ -46,7 +48,11 @@ Read [`docs/testing-workflow.md`](docs/testing-workflow.md) for when to write te
 
 ## UI Patterns
 
-Before building any new UI, check [`docs/ui-patterns.md`](docs/ui-patterns.md) for existing reusable components. Update the registry when you add a new one.
+Read [`docs/ui-patterns.md`](docs/ui-patterns.md) **before writing any component.** The 3-step search process there is mandatory — not a suggestion. Update the registry when you add a reusable component.
+
+## Performance
+
+Read [`docs/performance.md`](docs/performance.md) before building data-fetching, image, font, or bundle-heavy features. Key rules: no `select('*')`, parallelize server fetches, lazy-import heavy packages, no debug `console.log` in data paths.
 
 ## Agents & Commands
 

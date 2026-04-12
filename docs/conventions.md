@@ -25,6 +25,12 @@
 - Return consistent error shapes: `{ error: string, code: string }`
 - Correct HTTP status codes always
 
+## Logging
+
+- Never log PII (names, emails, user IDs) in server-side `console.log` — these flow to Vercel logs and any connected log drains
+- Narrow caught errors before logging: `err instanceof Error ? err.message : String(err)` — raw error objects from third-party SDKs can contain token fragments or full response bodies
+- Log operational facts (file sizes, counts, durations), not user data
+
 ## Testing
 
 - **Mandatory**: When you add a new component, hook, utility, or API route, write its test file as part of the same task — before marking the task complete. No exceptions.
