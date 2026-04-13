@@ -36,8 +36,12 @@ jobs:
       - name: Build
         run: npm run build
         env:
+          NODE_OPTIONS: '--max-old-space-size=4096'
           # Add any build-time env vars here (use GitHub Secrets for real values)
           NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL || 'http://localhost:3000' }}
+
+      - name: Bundle size check
+        run: npm run size
 
       - name: Security audit
         run: npm audit --audit-level=high
