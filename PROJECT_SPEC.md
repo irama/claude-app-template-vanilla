@@ -21,10 +21,12 @@
 List only what will be built in v1. Be explicit about what is OUT of scope.
 
 ### In scope
+
 - [ ] Feature 1
 - [ ] Feature 2
 
 ### Out of scope (v2+)
+
 - Feature X
 - Feature Y
 
@@ -32,45 +34,77 @@ List only what will be built in v1. Be explicit about what is OUT of scope.
 
 ## User Roles & Permissions
 
-| Role | Can do | Cannot do |
-|------|--------|-----------|
-| [role] | ... | ... |
+| Role   | Can do | Cannot do |
+| ------ | ------ | --------- |
+| [role] | ...    | ...       |
 
 ---
 
 ## Data Models
 
 ### [ModelName]
-| Field | Type | Notes |
-|-------|------|-------|
-| id | uuid | primary key |
-| created_at | timestamp | auto |
+
+| Field      | Type      | Notes       |
+| ---------- | --------- | ----------- |
+| id         | uuid      | primary key |
+| created_at | timestamp | auto        |
 
 ---
 
 ## Pages & User Flows
 
 ### [Page name] — `/route`
+
 **Who sees it:** [role]
 **Purpose:** [one line]
 **Key interactions:**
+
 - User does X → Y happens
 - User does A → B happens
 
 ---
 
+## Data Flows (if applicable)
+
+> Skip this section for apps with no external data ingestion or ETL work.
+
+### Sources
+
+| Source          | Format | Frequency | Owner  |
+| --------------- | ------ | --------- | ------ |
+| [e.g. Xero API] | JSON   | Daily     | [team] |
+
+### Transformation layers
+
+| Layer       | Location                                | Description                   |
+| ----------- | --------------------------------------- | ----------------------------- |
+| Raw         | [e.g. BigQuery `raw` dataset]           | Immutable copy of source data |
+| Transformed | [e.g. BigQuery `transformed` dataset]   | Cleaned, normalised, joined   |
+| Serving     | [e.g. BigQuery `serving` dataset / API] | Aggregated, app-ready         |
+
+### Data quality gates
+
+List the assertions that must pass before data is promoted to the serving layer:
+
+- [ ] [e.g. Row count non-zero]
+- [ ] [e.g. Required fields non-null]
+- [ ] [e.g. Totals reconcile with source]
+
+---
+
 ## API Endpoints (if applicable)
 
-| Method | Route | Auth | Description |
-|--------|-------|------|-------------|
-| GET | `/api/...` | required | ... |
-| POST | `/api/...` | required | ... |
+| Method | Route      | Auth     | Description |
+| ------ | ---------- | -------- | ----------- |
+| GET    | `/api/...` | required | ...         |
+| POST   | `/api/...` | required | ...         |
 
 ---
 
 ## Error States
 
 List every meaningful error the user might encounter and how the app handles it:
+
 - [ ] Network failure
 - [ ] Auth token expired
 - [ ] [App-specific errors]
@@ -79,13 +113,13 @@ List every meaningful error the user might encounter and how the app handles it:
 
 ## Tech Stack Decisions
 
-| Layer | Choice | Why |
-|-------|--------|-----|
-| Frontend | Next.js 15 | App Router, TypeScript, Vercel-native |
-| Styling | Tailwind CSS | Fast iteration, Claude writes it well |
-| Database | [e.g. Supabase] | [reason] |
-| Auth | [e.g. Supabase Auth] | [reason] |
-| Deployment | Vercel | Next.js native, preview deployments |
+| Layer      | Choice               | Why                                   |
+| ---------- | -------------------- | ------------------------------------- |
+| Frontend   | Next.js 15           | App Router, TypeScript, Vercel-native |
+| Styling    | Tailwind CSS         | Fast iteration, Claude writes it well |
+| Database   | [e.g. Supabase]      | [reason]                              |
+| Auth       | [e.g. Supabase Auth] | [reason]                              |
+| Deployment | Vercel               | Next.js native, preview deployments   |
 
 ---
 
@@ -102,5 +136,6 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 ## Open Questions
 
 Things that need a decision before or during build:
+
 - [ ] Question 1
 - [ ] Question 2

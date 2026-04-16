@@ -48,15 +48,19 @@ Read [`docs/testing-workflow.md`](docs/testing-workflow.md) for when to write te
 
 ## UI Patterns
 
-Read [`docs/ui-patterns.md`](docs/ui-patterns.md) **before writing any component.** The 3-step search process there is mandatory — not a suggestion. Update the registry when you add a reusable component.
+Read [`docs/ui-patterns.md`](docs/ui-patterns.md) **before writing any component.** The 3-step search process there is mandatory — not a suggestion. Update the registry when you add a reusable component. The Design Tokens section defines the only permitted button sizes, heading scale, and spacing values.
+
+## UX Principles
+
+Read [`docs/ux-principles.md`](docs/ux-principles.md) **before any task that shows, hides, animates, or moves UI elements.** Key rules: no unmotivated movement, no layout-shifting hover effects, optimistic updates with immediate feedback, undo toasts instead of confirmation dialogs, skeletons over generic spinners.
 
 ## Performance
 
-Read [`docs/performance.md`](docs/performance.md) before building data-fetching, image, font, or bundle-heavy features. Key rules: no `select('*')`, parallelize server fetches, lazy-import heavy packages, no debug `console.log` in data paths.
+Read [`docs/performance.md`](docs/performance.md) before building data-fetching, image, font, or bundle-heavy features. Key rules: no `select('*')`, parallelize server fetches, lazy-import heavy packages, no debug `console.log` in data paths, optimistic UI with rollback on failure.
 
 ## Accessibility & Responsive Design
 
-Read [`docs/accessibility.md`](docs/accessibility.md) before writing any UI. Three mandatory gates on every UI task: mobile layout at 375px, WCAG AA contrast in both light and dark modes, keyboard navigation with visible focus rings.
+Read [`docs/accessibility.md`](docs/accessibility.md) before writing any UI. Four mandatory gates on every UI task: mobile layout at 375px, WCAG AA contrast in both light and dark modes, keyboard navigation with visible focus rings, motion respects `prefers-reduced-motion`.
 
 ## Agents & Commands
 
@@ -64,10 +68,14 @@ Read [`docs/agents.md`](docs/agents.md) for the full list of available subagents
 
 **Key triggers:**
 
-- Any UI task → complete the mobile/contrast/keyboard checklists in `docs/accessibility.md`
+- Any UI task → complete the mobile/contrast/keyboard/motion checklists in `docs/accessibility.md`
+- Any UI task that shows, hides, animates, or moves elements → read `docs/ux-principles.md`
+- Any destructive action (delete, archive, remove) → use undo toast, not confirmation dialog (see `docs/ux-principles.md` §4)
+- Any mutation or form submit → must be optimistic with immediate feedback (see `docs/ux-principles.md` §3)
 - Any task adding/changing/removing user-facing functionality → update `PROJECT_SPEC.md` before finishing
 - New component/route → write its test in the same task
 - Auth/API/data task → security spot-check with `security-reviewer` before finishing
+- Any pipeline, ingestion, or data transformation task → use `data-engineer` agent; verify idempotency and data quality gates
 - End of session → `/review`
 - Pre-deploy on sensitive features → `/security-check`
 

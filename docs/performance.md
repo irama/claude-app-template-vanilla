@@ -98,6 +98,36 @@ Server-side `console.log` in API routes, server actions, or data loaders streams
 
 ---
 
+## Optimistic UI
+
+Apply state changes to the UI immediately — before the server confirms — then reconcile in the background. Roll back on failure. Never make the user wait for a round-trip before their action is reflected.
+
+**Pattern with SWR `mutate`:**
+
+```tsx
+async function handleDelete(id: string) {
+  // 1. Apply optimistically
+  mutate('/api/items', (current: Item[]) => current?.filter((item) => item.id !== id), {
+    revalidate: false,
+  });
+  try {
+    await deleteItem(id);
+    mutate('/api/items'); // confirm with server
+  } catch {
+    mutate('/api/items'); // roll back by revalidating
+    toast.error('Could not delete — changes reverted');
+  }
+}
+```
+
+**Rules:**
+
+- Disable submit buttons and show a spinner the moment a form submits — re-enable only on success or error.
+- If an operation will take >300ms, show a progress indicator. Never leave the UI static while async work runs.
+- Failed optimistic updates must roll back visually and show a clear error toast.
+
+---
+
 ## SWR cache warming (SPA architectures)
 
 In apps that use a multi-panel SPA shell (where a single React tree persists across navigations and panels are shown/hidden via CSS), server-side data can't safely be passed to panels as RSC `children` frozen in state — RSC reconciliation from `revalidatePath` calls will replace the frozen element, causing blank renders.
