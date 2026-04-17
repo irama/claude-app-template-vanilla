@@ -23,6 +23,9 @@ Read `PROJECT_SPEC.md` before writing any code. Treat it as the source of truth 
 ## File Structure
 
 ```
+data/
+  supabase/         # Migrations, seed SQL, RLS policies (never use top-level /supabase)
+  bigquery/         # SQL transforms and schema definitions (never use top-level /bigquery)
 src/
   app/              # Next.js App Router pages and layouts
   components/       # Reusable UI components
@@ -32,6 +35,8 @@ src/
   types/            # Shared TypeScript types
   test/             # Test setup and shared test utilities
 ```
+
+**Data & database convention:** All SQL, migrations, seed data, and data warehouse definitions live under `data/` in the project root. Use `data/supabase/` and `data/bigquery/` — never create top-level `supabase/` or `bigquery/` directories.
 
 ## Conventions
 
