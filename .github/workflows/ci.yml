@@ -22,7 +22,11 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        # Using `npm install` rather than `npm ci` because cross-platform
+        # lockfile generation on macOS (arm64) reliably misses some Linux
+        # transitive optional deps (e.g. @rolldown/binding-wasm32-wasi's
+        # nested @emnapi/* entries). Revisit if switching to pnpm.
+        run: npm install --prefer-offline --no-audit --no-fund
 
       - name: Type check
         run: npm run typecheck
