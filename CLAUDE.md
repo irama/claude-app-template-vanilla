@@ -3,6 +3,8 @@
 > This is a reusable template for building production-quality Next.js apps with Claude Code.
 > When starting a new project: update this file with project-specific details, fill in PROJECT_SPEC.md, then delete this note.
 
+> **See also:** `~/.claude/CLAUDE.md` for user-level cross-project rules (task summary format, git push offer convention, etc.).
+
 > **How this file is structured — progressive disclosure:** This file stays short by linking out to `docs/*.md` for detail. If you add a new practice area, create `docs/that-area.md` and add a one-line link here — do not add inline content. Apply the same principle to agent definitions: keep the agent prompt concise and link to or inline only what that agent specifically needs.
 
 ## Project Overview
