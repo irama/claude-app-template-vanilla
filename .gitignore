@@ -46,3 +46,7 @@ coverage/
 # OS
 .DS_Store
 Thumbs.db
+
+
+# local work-in-progress (not for version control)
+WIP-LOCAL/

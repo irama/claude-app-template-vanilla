@@ -40,6 +40,10 @@ src/
 
 **Data & database convention:** All SQL, migrations, seed data, and data warehouse definitions live under `data/` in the project root. Use `data/supabase/` and `data/bigquery/` — never create top-level `supabase/` or `bigquery/` directories.
 
+## Code Search
+
+Always use the semble-search.md sub-agent when searching code. Never grep or read.
+
 ## Conventions
 
 Read [`docs/conventions.md`](docs/conventions.md) for TypeScript, component, styling, API, testing, and commit rules.
