@@ -42,7 +42,13 @@ src/
 
 ## Code Search
 
-Always use the semble-search.md sub-agent when searching code. Never grep or read.
+Pick by question type — one tool per question, don't stack them:
+
+- **Semantic / "how does X work" / "where is the thing that…"** → `semble-search` subagent
+- **Structural / exact syntax patterns** (find all `useSWR` calls, every `select('*')`) → `ast-grep` (`sg`) via Bash
+- **Known file, known location** → `Read` directly
+
+Never use the Grep tool (disabled globally) or read whole directories to search.
 
 ## Conventions
 
@@ -57,21 +63,16 @@ Read [`docs/testing-workflow.md`](docs/testing-workflow.md) for when to write te
 - Zod validation on all API inputs
 - Conventional commits
 
-## UI Patterns
+## UI Quality Gates
 
-Read [`docs/ui-patterns.md`](docs/ui-patterns.md) **before writing any component.** The 3-step search process there is mandatory — not a suggestion. Update the registry when you add a reusable component. The Design Tokens section defines the only permitted button sizes, heading scale, and spacing values.
+Read [`docs/ui-gates.md`](docs/ui-gates.md) **before any UI task** — it is the single mandatory checklist (search-before-build, mobile 375px, WCAG AA both modes, keyboard, motion, optimistic mutations, undo toasts, loading/error states, tokens, performance). Its "Which gates apply" table scopes what to check per task type.
 
-## UX Principles
+Deep-dive references — consult when a gate needs detail, not by default:
 
-Read [`docs/ux-principles.md`](docs/ux-principles.md) **before any task that shows, hides, animates, or moves UI elements.** Key rules: no unmotivated movement, no layout-shifting hover effects, optimistic updates with immediate feedback, undo toasts instead of confirmation dialogs, skeletons over generic spinners.
-
-## Performance
-
-Read [`docs/performance.md`](docs/performance.md) before building data-fetching, image, font, or bundle-heavy features. Key rules: no `select('*')`, parallelize server fetches, lazy-import heavy packages, no debug `console.log` in data paths, optimistic UI with rollback on failure.
-
-## Accessibility & Responsive Design
-
-Read [`docs/accessibility.md`](docs/accessibility.md) before writing any UI. Four mandatory gates on every UI task: mobile layout at 375px, WCAG AA contrast in both light and dark modes, keyboard navigation with visible focus rings, motion respects `prefers-reduced-motion`.
+- [`docs/ui-patterns.md`](docs/ui-patterns.md) — component registry (update it when adding reusable patterns) + Design Tokens (only permitted button sizes, heading scale, spacing)
+- [`docs/ux-principles.md`](docs/ux-principles.md) — locus of control, motion, optimistic/undo patterns with code
+- [`docs/accessibility.md`](docs/accessibility.md) — keyboard hierarchy, Radix widget map, ARIA live regions, tabindex rules
+- [`docs/performance.md`](docs/performance.md) — data fetching, bundle, image/font patterns
 
 ## Agents & Commands
 
@@ -79,15 +80,12 @@ Read [`docs/agents.md`](docs/agents.md) for the full list of available subagents
 
 **Key triggers:**
 
-- Any UI task → complete the mobile/contrast/keyboard/motion checklists in `docs/accessibility.md`
-- Any UI task that shows, hides, animates, or moves elements → read `docs/ux-principles.md`
-- Any destructive action (delete, archive, remove) → use undo toast, not confirmation dialog (see `docs/ux-principles.md` §4)
-- Any mutation or form submit → must be optimistic with immediate feedback (see `docs/ux-principles.md` §3)
+- Any UI task → complete the applicable gates in `docs/ui-gates.md` (undo toasts for destructive actions and optimistic mutations are gates 6–7 there)
 - Any task adding/changing/removing user-facing functionality → update `PROJECT_SPEC.md` before finishing
 - New component/route → write its test in the same task
 - Auth/API/data task → security spot-check with `security-reviewer` before finishing
 - Any pipeline, ingestion, or data transformation task → use `data-engineer` agent; verify idempotency and data quality gates
-- End of session → `/review`
+- End of session → `/session-review`
 - Pre-deploy on sensitive features → `/security-check`
 
 ## Permissions

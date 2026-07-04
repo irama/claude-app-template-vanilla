@@ -1,6 +1,6 @@
 ---
 name: tooltip
-description: Build, debug, or tune tooltips that actually feel good — a reusable two-mode engine (anchored + cursor-following) plus a symptom→cause→fix playbook. Use whenever a task involves tooltips, hover hints, "tip", title-attribute replacement, a tooltip that clips/flickers/lags/flips wrong, doesn't show on keyboard focus, traps focus, won't stay to be read (WCAG 1.4.13), a follow-the-cursor tip for a chart/canvas/map, or deciding tooltip vs popover. Ships drop-in TS source (pure solver + engine + React useTooltip/Tip bindings + CSS + a live testbed) that works across any React/Next project (and strips to plain JS for vanilla).
+description: Drop-in tooltip engine (anchored + cursor-follow) with React bindings, plus a symptom→cause→fix debug playbook. Use for any task involving tooltips or hover hints — building one, replacing title=, fixing clip/flicker/lag/wrong-flip/no-keyboard-focus (WCAG 1.4.13), cursor-follow tips for charts/canvas/maps, or deciding tooltip vs popover.
 ---
 
 # Tooltip — reusable two-mode engine + debug playbook
