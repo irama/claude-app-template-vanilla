@@ -1,0 +1,887 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tooltip Lab</title>
+<style>
+  html, body { margin: 0; }
+  :root {
+    --bg: #F4F6F7;
+    --panel: #FFFFFF;
+    --panel-2: #EAEFF0;
+    --ink: #12191C;
+    --ink-2: #4A585E;
+    --ink-3: #78868C;
+    --border: #D6DEE0;
+    --border-strong: #BCC7CA;
+    --accent: #0E8C9E;
+    --accent-ink: #095561;
+    --accent-wash: #E2F1F3;
+    --good: #2E9E6B;
+    --warn: #C4832A;
+    --tip-bg: #12262B;
+    --tip-ink: #EAF6F7;
+    --tip-edge: #2FA9BC;
+    --shadow: 0 1px 2px rgba(18,38,43,.06), 0 8px 24px rgba(18,38,43,.10);
+    --tip-shadow: 0 2px 6px rgba(0,0,0,.28), 0 14px 34px rgba(0,0,0,.30);
+
+    --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+
+    --r: 9px;
+    --r-sm: 6px;
+    --maxw: 1140px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0C1215;
+      --panel: #111C20;
+      --panel-2: #0E171B;
+      --ink: #E6EEF0;
+      --ink-2: #9EADB2;
+      --ink-3: #6E7E84;
+      --border: #223035;
+      --border-strong: #31444B;
+      --accent: #37C2D4;
+      --accent-ink: #8FE0EA;
+      --accent-wash: #10282E;
+      --good: #43BE86;
+      --warn: #DAA24A;
+      --tip-bg: #0B1D22;
+      --tip-ink: #E9F6F8;
+      --tip-edge: #37C2D4;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 28px rgba(0,0,0,.5);
+      --tip-shadow: 0 2px 6px rgba(0,0,0,.5), 0 16px 40px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #F4F6F7; --panel: #FFFFFF; --panel-2: #EAEFF0; --ink: #12191C;
+    --ink-2: #4A585E; --ink-3: #78868C; --border: #D6DEE0; --border-strong: #BCC7CA;
+    --accent: #0E8C9E; --accent-ink: #095561; --accent-wash: #E2F1F3;
+    --good: #2E9E6B; --warn: #C4832A; --tip-bg: #12262B; --tip-ink: #EAF6F7; --tip-edge: #2FA9BC;
+    --shadow: 0 1px 2px rgba(18,38,43,.06), 0 8px 24px rgba(18,38,43,.10);
+    --tip-shadow: 0 2px 6px rgba(0,0,0,.28), 0 14px 34px rgba(0,0,0,.30);
+  }
+  :root[data-theme="dark"] {
+    --bg: #0C1215; --panel: #111C20; --panel-2: #0E171B; --ink: #E6EEF0;
+    --ink-2: #9EADB2; --ink-3: #6E7E84; --border: #223035; --border-strong: #31444B;
+    --accent: #37C2D4; --accent-ink: #8FE0EA; --accent-wash: #10282E;
+    --good: #43BE86; --warn: #DAA24A; --tip-bg: #0B1D22; --tip-ink: #E9F6F8; --tip-edge: #37C2D4;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 28px rgba(0,0,0,.5);
+    --tip-shadow: 0 2px 6px rgba(0,0,0,.5), 0 16px 40px rgba(0,0,0,.6);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-ui);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 40px 24px 96px; }
+
+  button:not(:disabled):not([aria-disabled='true']),
+  [role='button']:not([aria-disabled='true']),
+  a[href], label[for], summary,
+  [tabindex]:not([tabindex='-1']):not([aria-disabled='true']) { cursor: pointer; }
+
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* ---- header ---- */
+  .eyebrow {
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: .22em;
+    text-transform: uppercase; color: var(--accent-ink); margin: 0 0 12px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .eyebrow::before {
+    content: ""; width: 22px; height: 1px; background: var(--accent); opacity: .7;
+  }
+  h1 {
+    font-size: clamp(30px, 5vw, 46px); line-height: 1.02; margin: 0 0 14px;
+    font-weight: 680; letter-spacing: -.02em; text-wrap: balance;
+  }
+  .lede { max-width: 60ch; color: var(--ink-2); font-size: 16.5px; margin: 0; }
+  .lede b { color: var(--ink); font-weight: 620; }
+
+  .topbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; flex-wrap: wrap; }
+  .theme-toggle {
+    font-family: var(--font-mono); font-size: 12px; letter-spacing: .04em;
+    border: 1px solid var(--border-strong); background: var(--panel);
+    color: var(--ink-2); border-radius: 999px; padding: 7px 14px; white-space: nowrap;
+  }
+  .theme-toggle:hover { border-color: var(--accent); color: var(--accent-ink); }
+
+  /* ---- live status strip (the instrument) ---- */
+  .instrument {
+    margin: 30px 0 44px; border: 1px solid var(--border);
+    background: linear-gradient(180deg, var(--panel), var(--panel-2));
+    border-radius: var(--r); box-shadow: var(--shadow); overflow: hidden;
+  }
+  .instrument-head {
+    display: flex; align-items: center; gap: 10px; padding: 11px 16px;
+    border-bottom: 1px solid var(--border); font-family: var(--font-mono);
+    font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-3);
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border-strong); transition: background .18s, box-shadow .18s; }
+  .instrument.live .dot { background: var(--accent); box-shadow: 0 0 0 4px var(--accent-wash); }
+  .readout {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    font-family: var(--font-mono); gap: 1px; background: var(--border);
+  }
+  .cell { background: var(--panel); padding: 13px 16px; }
+  .cell .k { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 5px; }
+  .cell .v { font-size: 15px; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .cell .v.accent { color: var(--accent-ink); }
+  .cell .v.warn { color: var(--warn); }
+  .cell .v.good { color: var(--good); }
+  .cell .v.idle { color: var(--ink-3); }
+
+  /* ---- stations ---- */
+  .station { margin-top: 40px; }
+  .station-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 6px; }
+  .station-no { font-family: var(--font-mono); font-size: 12px; color: var(--accent); letter-spacing: .1em; }
+  .station-head h2 { font-size: 20px; margin: 0; font-weight: 640; letter-spacing: -.01em; }
+  .station-note { color: var(--ink-2); font-size: 14.5px; margin: 0 0 18px; max-width: 68ch; }
+  .card {
+    border: 1px solid var(--border); background: var(--panel);
+    border-radius: var(--r); padding: 22px; box-shadow: var(--shadow);
+  }
+
+  /* toolbar of icon buttons */
+  .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .iconbtn {
+    width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border-strong); background: var(--panel-2); color: var(--ink-2);
+    border-radius: var(--r-sm); font-size: 18px;
+  }
+  .iconbtn:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-wash); }
+  .iconbtn svg { width: 18px; height: 18px; }
+  .sep { width: 1px; height: 26px; background: var(--border); margin: 0 4px; }
+
+  .chip-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+  .chip {
+    font-family: var(--font-mono); font-size: 12.5px; padding: 8px 14px; border-radius: 999px;
+    border: 1px solid var(--border-strong); background: var(--panel-2); color: var(--ink-2);
+  }
+  .chip:hover, .chip:focus-visible { border-color: var(--accent); color: var(--accent-ink); outline: none; }
+  .chip:focus-visible { box-shadow: 0 0 0 3px var(--accent-wash); }
+
+  /* truncated text rows */
+  .trunc-list { display: grid; gap: 2px; }
+  .trunc-row { display: grid; grid-template-columns: 96px 1fr; gap: 16px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--border); }
+  .trunc-row:last-child { border-bottom: 0; }
+  .trunc-row .who { font-family: var(--font-mono); font-size: 12px; color: var(--ink-3); }
+  .trunc {
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    font-size: 15px; color: var(--ink); min-width: 0;
+  }
+  .trunc:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+
+  /* collision arena */
+  .arena {
+    position: relative; height: 300px; border: 1px dashed var(--border-strong);
+    border-radius: var(--r-sm); background:
+      linear-gradient(var(--panel-2) 0 0) padding-box,
+      repeating-linear-gradient(0deg, transparent 0 23px, var(--border) 23px 24px),
+      repeating-linear-gradient(90deg, transparent 0 23px, var(--border) 23px 24px);
+    overflow: hidden;
+  }
+  .anchor {
+    position: absolute; width: 30px; height: 30px; border-radius: 6px;
+    background: var(--accent); color: #fff; border: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+  }
+  .anchor:hover, .anchor:focus-visible { outline: none; transform: scale(1.08); }
+  .arena-hint { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+  .arena-hint span { font-family: var(--font-mono); font-size: 12px; color: var(--ink-3); background: var(--panel); padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border); }
+
+  /* follow-mode plot */
+  .plot-wrap { position: relative; }
+  #plot {
+    display: block; width: 100%; height: 260px; border-radius: var(--r-sm);
+    border: 1px solid var(--border); background: var(--panel-2); touch-action: none;
+  }
+  #plot:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .alt-readout {
+    margin-top: 12px; font-family: var(--font-mono); font-size: 13px; color: var(--ink-2);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .alt-readout .tag { color: var(--accent-ink); }
+  .alt-readout b { color: var(--ink); font-weight: 600; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 720px) { .grid-2 { grid-template-columns: 1fr; } .trunc-row { grid-template-columns: 74px 1fr; } }
+
+  /* a11y station */
+  .kbd-note { display: flex; gap: 10px; align-items: center; color: var(--ink-2); font-size: 14px; margin-top: 14px; flex-wrap: wrap; }
+  kbd {
+    font-family: var(--font-mono); font-size: 12px; background: var(--panel-2);
+    border: 1px solid var(--border-strong); border-bottom-width: 2px; border-radius: 5px;
+    padding: 2px 7px; color: var(--ink); white-space: nowrap;
+  }
+
+  /* API card */
+  pre {
+    margin: 0; overflow-x: auto; background: var(--tip-bg); color: var(--tip-ink);
+    border-radius: var(--r-sm); padding: 18px 20px; font-family: var(--font-mono);
+    font-size: 13px; line-height: 1.7; border: 1px solid color-mix(in srgb, var(--tip-edge) 30%, transparent);
+  }
+  pre .c { color: color-mix(in srgb, var(--tip-ink) 45%, transparent); }
+  pre .k { color: var(--tip-edge); }
+  pre .s { color: #E9C08A; }
+  .api-grid { display: grid; grid-template-columns: 160px 1fr; gap: 2px 0; font-size: 14px; }
+  .api-grid > div { padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .api-grid .name { font-family: var(--font-mono); color: var(--accent-ink); font-size: 13px; }
+  .api-grid .desc { color: var(--ink-2); }
+  .api-grid .desc code { font-family: var(--font-mono); font-size: 12.5px; background: var(--panel-2); padding: 1px 6px; border-radius: 4px; color: var(--ink); }
+
+  footer { margin-top: 56px; padding-top: 22px; border-top: 1px solid var(--border); color: var(--ink-3); font-size: 13px; font-family: var(--font-mono); }
+
+  /* =========== TOOLTIP ENGINE STYLES =========== */
+  #tt-layer { position: fixed; inset: 0; pointer-events: none; z-index: 2147483000; }
+  #tt-layer:popover-open { inset: 0; width: 100%; height: 100%; border: 0; background: transparent; padding: 0; margin: 0; overflow: visible; }
+  .tt {
+    position: fixed; top: 0; left: 0; max-width: 280px;
+    background: var(--tip-bg); color: var(--tip-ink);
+    font-family: var(--font-ui); font-size: 13px; line-height: 1.45;
+    padding: 8px 11px; border-radius: 7px; box-shadow: var(--tip-shadow);
+    border: 1px solid color-mix(in srgb, var(--tip-edge) 34%, transparent);
+    opacity: 0; transform: translateY(2px) scale(.97); transform-origin: center;
+    transition: opacity .13s ease, transform .13s ease; will-change: transform, opacity;
+    pointer-events: none;
+  }
+  .tt.tt-in { opacity: 1; transform: translateY(0) scale(1); }
+  .tt.tt-hoverable { pointer-events: auto; }
+  .tt-title { font-weight: 640; }
+  .tt-sub { color: color-mix(in srgb, var(--tip-ink) 66%, transparent); font-size: 12px; margin-top: 2px; }
+  .tt-kbd { font-family: var(--font-mono); font-size: 11px; opacity: .8; }
+  .tt-arrow {
+    position: absolute; width: 9px; height: 9px; background: var(--tip-bg);
+    border-right: 1px solid color-mix(in srgb, var(--tip-edge) 34%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--tip-edge) 34%, transparent);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .tt { transition: opacity .01s; transform: none; }
+    .tt.tt-in { transform: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="topbar">
+    <div>
+      <p class="eyebrow">Reusable primitive · two modes</p>
+      <h1>Tooltip Lab</h1>
+      <p class="lede">One tooltip engine, two behaviours. <b>Anchored</b> pins to a target and holds still; <b>follow</b> tracks the cursor for charts and canvases. Portalled to the top layer, collision-aware (shift → flip → re-anchor), keyboard-reachable, dismissible. Hover anything below — the strip reports what the engine decided.</p>
+    </div>
+    <button class="theme-toggle" id="themeBtn" type="button">◐ theme</button>
+  </div>
+
+  <!-- LIVE INSTRUMENT -->
+  <div class="instrument" id="instrument">
+    <div class="instrument-head"><span class="dot"></span> engine telemetry — live</div>
+    <div class="readout">
+      <div class="cell"><div class="k">mode</div><div class="v idle" id="r-mode">idle</div></div>
+      <div class="cell"><div class="k">preferred</div><div class="v idle" id="r-pref">—</div></div>
+      <div class="cell"><div class="k">resolved</div><div class="v idle" id="r-resolved">—</div></div>
+      <div class="cell"><div class="k">collision</div><div class="v idle" id="r-collision">none</div></div>
+      <div class="cell"><div class="k">anchor xy</div><div class="v idle" id="r-xy">—</div></div>
+    </div>
+  </div>
+
+  <!-- STATION 01 — anchored basics -->
+  <section class="station">
+    <div class="station-head"><span class="station-no">01</span><h2>Anchored — the default</h2></div>
+    <p class="station-note">Icons, buttons, chips. The tip pins to the element and stays put while hovered or focused; it never chases the mouse. Every chip declares a preferred side; watch <em>resolved</em> match it when there's room.</p>
+    <div class="card">
+      <div class="toolbar">
+        <button class="iconbtn" data-tooltip="Archive" aria-label="Archive">🗄</button>
+        <button class="iconbtn" data-tooltip="Snooze until tomorrow 8am" aria-label="Snooze">⏰</button>
+        <button class="iconbtn" data-tooltip="Mark as spam" aria-label="Spam">⚠</button>
+        <span class="sep"></span>
+        <button class="iconbtn" data-tooltip="Reply" aria-label="Reply">↩</button>
+        <button class="iconbtn" data-tooltip="Forward" aria-label="Forward">↪</button>
+        <span class="sep"></span>
+        <button class="iconbtn" data-tooltip='{"title":"Rules engine","sub":"12 active · last run 2m ago"}' aria-label="Rules">⚙</button>
+        <button class="iconbtn" data-tooltip='{"title":"Delete","sub":"Moves to Trash · 30-day recovery"}' aria-label="Delete">🗑</button>
+      </div>
+      <div class="chip-row">
+        <button class="chip" data-tooltip="I open above" data-placement="top" type="button">placement: top</button>
+        <button class="chip" data-tooltip="I open below" data-placement="bottom" type="button">placement: bottom</button>
+        <button class="chip" data-tooltip="I open to the left" data-placement="left" type="button">placement: left</button>
+        <button class="chip" data-tooltip="I open to the right" data-placement="right" type="button">placement: right</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATION 02 — truncated text -->
+  <section class="station">
+    <div class="station-head"><span class="station-no">02</span><h2>Truncated text — tip only when clipped</h2></div>
+    <p class="station-note"><code style="font-family:var(--font-mono);font-size:12.5px">onlyIfTruncated</code> suppresses the tooltip when the text already fits — no redundant tips. Resize the window narrower to clip more rows and watch tips appear. Each row is keyboard-focusable.</p>
+    <div class="card">
+      <div class="trunc-list">
+        <div class="trunc-row"><span class="who">FROM</span><div class="trunc" tabindex="0" data-tooltip-truncate>Quarterly board deck — final revisions before Thursday's investor sync, please review the appendix</div></div>
+        <div class="trunc-row"><span class="who">FROM</span><div class="trunc" tabindex="0" data-tooltip-truncate>Re: lunch?</div></div>
+        <div class="trunc-row"><span class="who">FROM</span><div class="trunc" tabindex="0" data-tooltip-truncate>Your Vercel deployment zero-peakstate-global-git-main finished building in 42s and is now live in production</div></div>
+        <div class="trunc-row"><span class="who">FROM</span><div class="trunc" tabindex="0" data-tooltip-truncate>Standup notes</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATION 03 — collision lab -->
+  <section class="station">
+    <div class="station-head"><span class="station-no">03</span><h2>Collision lab — shift &amp; flip inside a boundary</h2></div>
+    <p class="station-note">These anchors pass <code style="font-family:var(--font-mono);font-size:12.5px">boundary: arena</code> — the tip must stay inside <em>this box</em>, not just the screen. Anchors are pinned flush to its edges to force overflow. The engine <b>shifts</b> along the cross-axis for small clips and <b>flips</b> to the opposite side when the preferred side won't fit the boundary. (<b>Re-anchor</b> to a perpendicular side is the last resort when both opposite sides fail.) The <em>collision</em> cell tags which fired.</p>
+    <div class="card">
+      <div class="arena" id="arena">
+        <button class="anchor" style="top:0;left:0" data-tooltip="Top-left — top won't fit the box, so I flip down and shift right" data-placement="top" data-boundary="#arena" aria-label="Top-left anchor">1</button>
+        <button class="anchor" style="top:0;left:50%;transform:translateX(-50%)" data-tooltip="Flush to the top edge — I flip below" data-placement="top" data-boundary="#arena" aria-label="Top-center anchor">2</button>
+        <button class="anchor" style="top:0;right:0" data-tooltip="Top-right — flip down, shift left" data-placement="top" data-boundary="#arena" aria-label="Top-right anchor">3</button>
+        <button class="anchor" style="top:50%;left:0;transform:translateY(-50%)" data-tooltip="Left edge — preferred left won't fit the box, so I flip to the right" data-placement="left" data-boundary="#arena" aria-label="Left anchor">4</button>
+        <button class="anchor" style="top:50%;right:0;transform:translateY(-50%)" data-tooltip="Right edge — preferred right won't fit, so I flip to the left" data-placement="right" data-boundary="#arena" aria-label="Right anchor">5</button>
+        <button class="anchor" style="bottom:0;left:0" data-tooltip="Bottom-left — flip up, shift right" data-placement="bottom" data-boundary="#arena" aria-label="Bottom-left anchor">6</button>
+        <button class="anchor" style="bottom:0;right:0" data-tooltip="Bottom-right — flip up, shift left" data-placement="bottom" data-boundary="#arena" aria-label="Bottom-right anchor">7</button>
+        <div class="arena-hint"><span>hover the numbered anchors →</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATION 04 — cursor follow -->
+  <section class="station">
+    <div class="station-head"><span class="station-no">04</span><h2>Cursor-following — opt-in, for regions</h2></div>
+    <p class="station-note">One large hover surface, no single anchor. Pass <code style="font-family:var(--font-mono);font-size:12.5px">mode:'follow'</code> and the tip tracks the pointer, offset from it, updates throttled to <code style="font-family:var(--font-mono);font-size:12.5px">requestAnimationFrame</code>, and still stays on-screen. Keyboard can't reach a moving target, so the same data is mirrored in the readout below — the accessible alternative.</p>
+    <div class="card">
+      <div class="plot-wrap">
+        <canvas id="plot" tabindex="0" role="img" aria-label="Signal density plot. Values: peak 0.94 at t=63, mean 0.41, samples 512."></canvas>
+      </div>
+      <div class="alt-readout"><span class="tag">readout ▸</span> <span id="plot-alt">move over the plot — density under the cursor appears here</span></div>
+    </div>
+  </section>
+
+  <!-- STATION 05 — a11y -->
+  <section class="station">
+    <div class="station-head"><span class="station-no">05</span><h2>Keyboard &amp; dismissal</h2></div>
+    <p class="grid-2" style="display:block" ></p>
+    <div class="grid-2">
+      <div class="card">
+        <p class="station-note" style="margin-bottom:14px">Tab through — tips appear on <b>focus</b>, not just hover. First tip in a burst waits the full delay; the rest skip it (group warm-up), so scrubbing a toolbar feels instant.</p>
+        <div class="chip-row">
+          <button class="chip" data-tooltip="Focused via keyboard ✓" type="button">Tab to me</button>
+          <button class="chip" data-tooltip="Me too — no delay, group is warm" type="button">then me</button>
+          <button class="chip" data-tooltip="And me" type="button">and me</button>
+        </div>
+        <div class="kbd-note"><kbd>Tab</kbd> focus · <kbd>Esc</kbd> dismiss the open tip</div>
+      </div>
+      <div class="card">
+        <p class="station-note" style="margin-bottom:14px">WCAG 1.4.13 — <b>hoverable &amp; persistent</b>. This tip has room to read; move your pointer <em>onto</em> the bubble and it stays. It never auto-times-out from under you.</p>
+        <div class="chip-row">
+          <button class="chip" data-tooltip='{"title":"Persistent tip","sub":"Move onto me — I stay. Press Esc to close."}' data-hoverable data-placement="bottom" type="button">hover, then reach the tip</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- API -->
+  <section class="station">
+    <div class="station-head"><span class="station-no">06</span><h2>The API</h2></div>
+    <p class="station-note">One factory. Declarative via <code style="font-family:var(--font-mono);font-size:12.5px">data-*</code> attributes for the common case, or imperative for full control.</p>
+    <div class="grid-2">
+      <div class="card">
+        <div class="api-grid">
+          <div class="name">target</div><div class="desc">Element the tip belongs to (or a <code>[data-tooltip]</code> scan).</div>
+          <div class="name">content</div><div class="desc">String, <code>{title, sub}</code>, or a DOM node.</div>
+          <div class="name">placement</div><div class="desc"><code>top</code> · <code>bottom</code> · <code>left</code> · <code>right</code>. Preferred only — fallback is automatic.</div>
+          <div class="name">mode</div><div class="desc"><code>anchored</code> (default) · <code>follow</code>.</div>
+          <div class="name">showDelay</div><div class="desc">ms hover-in. Default <code>420</code>.</div>
+          <div class="name">hideDelay</div><div class="desc">ms hover-out. Default <code>90</code>.</div>
+          <div class="name">offset</div><div class="desc">px gap from anchor/cursor. Default <code>12</code>.</div>
+          <div class="name">hoverable</div><div class="desc">Let the pointer enter the tip (WCAG). Default <code>false</code>.</div>
+          <div class="name">onlyIfTruncated</div><div class="desc">Suppress unless the text is clipped.</div>
+        </div>
+      </div>
+      <div class="card">
+<pre><span class="c">// declarative — the 90% case</span>
+&lt;button <span class="k">data-tooltip</span>=<span class="s">"Archive"</span>&gt;🗄&lt;/button&gt;
+&lt;div <span class="k">data-tooltip</span>=<span class="s">"…"</span> <span class="k">data-tooltip-truncate</span>&gt;…&lt;/div&gt;
+
+<span class="c">// imperative — anchored</span>
+<span class="k">Tooltip</span>.attach(btn, {
+  content: { title: <span class="s">"Delete"</span>, sub: <span class="s">"30-day recovery"</span> },
+  placement: <span class="s">"bottom"</span>,
+})
+
+<span class="c">// imperative — cursor-following region</span>
+<span class="k">Tooltip</span>.attach(canvas, {
+  mode: <span class="s">"follow"</span>,
+  content: (e) =&gt; readAt(e.clientX, e.clientY),
+})
+
+<span class="c">// scan the page for data-tooltip once</span>
+<span class="k">Tooltip</span>.init()</pre>
+      </div>
+    </div>
+  </section>
+
+  <footer>tooltip-lab · self-contained prototype · engine ≈ 6kb · zero deps</footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ============================================================
+     TOOLTIP ENGINE
+     - anchored (default) + follow modes
+     - top-layer portal (Popover API) with z-index fallback
+     - collision pipeline: offset -> shift(cross) -> flip -> re-anchor
+     - timing: show/hide delay + group warm-up/cool-down
+     - a11y: focus, Escape, hoverable+persistent (WCAG 1.4.13)
+     ============================================================ */
+
+  var VIEWPORT_PAD = 8;      // never sit flush to the edge
+  var GROUP_WINDOW = 400;    // ms — warm-up/cool-down skip window
+  var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // --- top-layer portal -------------------------------------------------
+  var layer = document.createElement("div");
+  layer.id = "tt-layer";
+  var canPopover = typeof layer.showPopover === "function";
+  if (canPopover) layer.setAttribute("popover", "manual");
+  document.body.appendChild(layer);
+  var layerShown = false;
+  function ensureLayer() {
+    if (canPopover && !layerShown) { try { layer.showPopover(); layerShown = true; } catch (e) {} }
+  }
+
+  // --- group timing (shared across all instances) -----------------------
+  var group = { open: 0, lastClose: 0 };
+  function groupWarm() { return group.open > 0 || (Date.now() - group.lastClose) < GROUP_WINDOW; }
+
+  // --- telemetry hook (for the demo instrument; safe no-op otherwise) ----
+  var reporter = null;
+  function report(info) { if (reporter) reporter(info); }
+
+  var OPP = { top: "bottom", bottom: "top", left: "right", right: "left" };
+  var AXIS = { top: "y", bottom: "y", left: "x", right: "x" };
+
+  function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
+
+  // ordered fallback list: preferred, its opposite, then the two perpendiculars
+  function candidates(pref) {
+    var perp = AXIS[pref] === "y" ? ["right", "left"] : ["bottom", "top"];
+    return [pref, OPP[pref], perp[0], perp[1]];
+  }
+
+  // raw (pre-shift) top-left for a given placement, cross-axis centered
+  function rawPos(p, a, w, h, off) {
+    var cx = a.left + a.width / 2, cy = a.top + a.height / 2;
+    if (p === "top")    return { x: cx - w / 2, y: a.top - h - off };
+    if (p === "bottom") return { x: cx - w / 2, y: a.bottom + off };
+    if (p === "left")   return { x: a.left - w - off, y: cy - h / 2 };
+    return { x: a.right + off, y: cy - h / 2 }; // right
+  }
+
+  // clipping rect the tip must stay inside — viewport, or a boundary element
+  // intersected with the viewport. This is what a placement collides against.
+  function bounds(el) {
+    var v = { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight };
+    if (!el) return v;
+    var r = el.getBoundingClientRect();
+    return {
+      left: Math.max(v.left, r.left), top: Math.max(v.top, r.top),
+      right: Math.min(v.right, r.right), bottom: Math.min(v.bottom, r.bottom),
+    };
+  }
+
+  // core solver — returns {x, y, placement, shifted, overflow}
+  function solve(anchorRect, w, h, pref, off, b) {
+    var pad = VIEWPORT_PAD;
+    var L = b.left + pad, T = b.top + pad, R = b.right - pad, B = b.bottom - pad;
+    var best = null;
+    var list = candidates(pref);
+    for (var i = 0; i < list.length; i++) {
+      var p = list[i];
+      var r = rawPos(p, anchorRect, w, h, off);
+      var shifted = 0, overflow = 0;
+      if (p === "top" || p === "bottom") {
+        var nx = clamp(r.x, L, Math.max(L, R - w));
+        shifted = Math.abs(nx - r.x); r.x = nx;
+        overflow = p === "top" ? Math.max(0, T - r.y)
+                               : Math.max(0, (r.y + h) - B);
+      } else {
+        var ny = clamp(r.y, T, Math.max(T, B - h));
+        shifted = Math.abs(ny - r.y); r.y = ny;
+        overflow = p === "left" ? Math.max(0, L - r.x)
+                                : Math.max(0, (r.x + w) - R);
+      }
+      r.placement = p; r.shifted = shifted; r.overflow = overflow;
+      if (overflow <= 0.5) { best = r; break; }        // fits — stop
+      if (!best || overflow < best.overflow) best = r;  // else keep least-bad
+    }
+    return best;
+  }
+
+  // classify what the collision pipeline did, for telemetry
+  function classify(pref, chosen, shifted) {
+    if (chosen === pref) return shifted > 0.5 ? "shift" : "none";
+    if (AXIS[chosen] === AXIS[pref]) return shifted > 0.5 ? "flip + shift" : "flip";
+    return "re-anchor";
+  }
+
+  // ----------------------------------------------------------------------
+  function Tip(target, opts) {
+    this.t = target;
+    this.o = Object.assign({
+      content: "",
+      placement: "top",
+      mode: "anchored",
+      showDelay: 420,
+      hideDelay: 90,
+      offset: 12,
+      hoverable: false,
+      onlyIfTruncated: false,
+      boundary: null,      // element to stay inside; null = viewport
+    }, opts);
+
+    this.el = null;        // bubble
+    this.arrow = null;
+    this.showT = 0;
+    this.hideT = 0;
+    this.open = false;
+    this.raf = 0;
+    this.mouse = { x: 0, y: 0 };
+    this.overBubble = false;
+    this.id = "tt-" + (Tip._n = (Tip._n || 0) + 1);
+
+    this._bind();
+  }
+
+  Tip.prototype._resolveContent = function (ev) {
+    var c = this.o.content;
+    if (typeof c === "function") c = c(ev || this.mouse);
+    return c;
+  };
+
+  // render content into a bubble (idempotent — reused by follow's per-frame update)
+  Tip.prototype._fill = function (el, c) {
+    // clear everything except a persistent arrow
+    var kids = Array.prototype.slice.call(el.childNodes);
+    kids.forEach(function (n) { if (n !== el.__arrow) el.removeChild(n); });
+    var frag = document.createDocumentFragment();
+    if (c && c.nodeType === 1) {
+      frag.appendChild(c);
+    } else if (c && typeof c === "object") {
+      var t = document.createElement("div"); t.className = "tt-title"; t.textContent = c.title || "";
+      frag.appendChild(t);
+      if (c.sub) { var s = document.createElement("div"); s.className = "tt-sub"; s.textContent = c.sub; frag.appendChild(s); }
+    } else {
+      frag.appendChild(document.createTextNode(String(c)));
+    }
+    el.insertBefore(frag, el.__arrow || null);
+  };
+
+  Tip.prototype._buildBubble = function (ev) {
+    var el = document.createElement("div");
+    el.className = "tt" + (this.o.hoverable && this.o.mode === "anchored" ? " tt-hoverable" : "");
+    el.setAttribute("role", "tooltip");
+    el.id = this.id;
+
+    if (this.o.mode === "anchored") {
+      this.arrow = document.createElement("div");
+      this.arrow.className = "tt-arrow";
+      el.appendChild(this.arrow);
+      el.__arrow = this.arrow;
+    }
+
+    this._fill(el, this._resolveContent(ev));
+
+    if (this.o.hoverable && this.o.mode === "anchored") {
+      var self = this;
+      el.addEventListener("pointerenter", function () { self.overBubble = true; clearTimeout(self.hideT); });
+      el.addEventListener("pointerleave", function () { self.overBubble = false; self._scheduleHide(); });
+    }
+    return el;
+  };
+
+  Tip.prototype._place = function () {
+    if (!this.el) return;
+    var w = this.el.offsetWidth, h = this.el.offsetHeight, off = this.o.offset;
+    var anchorRect;
+
+    if (this.o.mode === "follow") {
+      // content is a live read of cursor position — refresh, then re-measure
+      if (typeof this.o.content === "function") {
+        this._fill(this.el, this._resolveContent());
+        w = this.el.offsetWidth; h = this.el.offsetHeight;
+      }
+      var mx = this.mouse.x, my = this.mouse.y;
+      var sol = solveFollow(mx, my, w, h, off);
+      this.el.style.left = sol.x + "px";
+      this.el.style.top = sol.y + "px";
+      report({ mode: "follow", pref: "cursor", resolved: sol.placement, collision: sol.flipped ? "flip" : "none", x: Math.round(mx), y: Math.round(my) });
+      return;
+    }
+
+    anchorRect = this.t.getBoundingClientRect();
+    var sol = solve(anchorRect, w, h, this.o.placement, off, bounds(this.o.boundary));
+    this.el.style.left = sol.x + "px";
+    this.el.style.top = sol.y + "px";
+    this._placeArrow(sol, anchorRect, w, h);
+
+    report({
+      mode: "anchored",
+      pref: this.o.placement,
+      resolved: sol.placement,
+      collision: classify(this.o.placement, sol.placement, sol.shifted),
+      x: Math.round(anchorRect.left + anchorRect.width / 2),
+      y: Math.round(anchorRect.top + anchorRect.height / 2),
+    });
+  };
+
+  // cursor-follow placement: offset to bottom-right, flip to stay on-screen
+  function solveFollow(mx, my, w, h, off) {
+    var vw = window.innerWidth, vh = window.innerHeight, pad = VIEWPORT_PAD;
+    var x = mx + off, y = my + off, placement = "bottom", flipped = false;
+    if (x + w > vw - pad) { x = mx - w - off; placement = "left"; flipped = true; }
+    if (y + h > vh - pad) { y = my - h - off; placement = flipped ? "top-left" : "top"; flipped = true; }
+    x = clamp(x, pad, Math.max(pad, vw - w - pad));
+    y = clamp(y, pad, Math.max(pad, vh - h - pad));
+    return { x: x, y: y, placement: placement, flipped: flipped };
+  }
+
+  Tip.prototype._placeArrow = function (sol, a, w, h) {
+    if (!this.arrow) return;
+    var p = sol.placement, arw = 9;
+    var acx = a.left + a.width / 2, acy = a.top + a.height / 2;
+    var s = this.arrow.style;
+    s.left = s.top = s.right = s.bottom = "";
+    if (p === "top" || p === "bottom") {
+      var ax = clamp(acx - sol.x, 12, w - 12) - arw / 2;
+      s.left = ax + "px";
+      if (p === "top") { s.bottom = (-arw / 2) + "px"; s.transform = "rotate(45deg)"; }
+      else { s.top = (-arw / 2) + "px"; s.transform = "rotate(225deg)"; }
+    } else {
+      var ay = clamp(acy - sol.y, 12, h - 12) - arw / 2;
+      s.top = ay + "px";
+      if (p === "left") { s.right = (-arw / 2) + "px"; s.transform = "rotate(-45deg)"; }
+      else { s.left = (-arw / 2) + "px"; s.transform = "rotate(135deg)"; }
+    }
+  };
+
+  Tip.prototype._show = function (ev) {
+    if (this.open) return;
+    if (this.o.onlyIfTruncated && this.t.scrollWidth <= this.t.clientWidth + 1) return;
+
+    ensureLayer();
+    this.el = this._buildBubble(ev);
+    this.el.style.visibility = "hidden";
+    layer.appendChild(this.el);
+    // measure, then place, then reveal
+    this._place();
+    this.el.style.visibility = "";
+    // link for SR
+    this.t.setAttribute("aria-describedby", this.id);
+
+    var self = this;
+    requestAnimationFrame(function () { if (self.el) self.el.classList.add("tt-in"); });
+
+    this.open = true;
+    group.open++;
+
+    if (this.o.mode === "follow") {
+      this._followMove = function (e) {
+        self.mouse.x = e.clientX; self.mouse.y = e.clientY;
+        if (!self.raf) self.raf = requestAnimationFrame(function () { self.raf = 0; self._place(); });
+      };
+      window.addEventListener("pointermove", this._followMove, { passive: true });
+    }
+  };
+
+  Tip.prototype._hide = function () {
+    if (!this.open) return;
+    this.open = false;
+    group.open = Math.max(0, group.open - 1);
+    group.lastClose = Date.now();
+    this.t.removeAttribute("aria-describedby");
+
+    if (this._followMove) { window.removeEventListener("pointermove", this._followMove); this._followMove = null; }
+    if (this.raf) { cancelAnimationFrame(this.raf); this.raf = 0; }
+
+    var el = this.el; this.el = null; this.arrow = null;
+    if (!el) return;
+    if (reduceMotion) { el.remove(); return; }
+    el.classList.remove("tt-in");
+    setTimeout(function () { el.remove(); }, 150);
+  };
+
+  Tip.prototype._scheduleShow = function (ev) {
+    clearTimeout(this.hideT); clearTimeout(this.showT);
+    var self = this, e = { clientX: ev ? ev.clientX : 0, clientY: ev ? ev.clientY : 0 };
+    if (ev) { this.mouse.x = ev.clientX; this.mouse.y = ev.clientY; }
+    var delay = groupWarm() ? 0 : this.o.showDelay;
+    this.showT = setTimeout(function () { self._show(e); }, delay);
+  };
+
+  Tip.prototype._scheduleHide = function () {
+    clearTimeout(this.showT); clearTimeout(this.hideT);
+    if (this.overBubble) return;
+    var self = this;
+    this.hideT = setTimeout(function () { self._hide(); }, this.o.hideDelay);
+  };
+
+  Tip.prototype._bind = function () {
+    var self = this;
+    this.t.addEventListener("pointerenter", function (e) { if (e.pointerType !== "touch") self._scheduleShow(e); });
+    this.t.addEventListener("pointerleave", function () { self._scheduleHide(); });
+    // follow needs an initial position from the enter point
+    this.t.addEventListener("pointermove", function (e) { if (!self.open && self.o.mode === "follow") { self.mouse.x = e.clientX; self.mouse.y = e.clientY; } });
+    // keyboard
+    this.t.addEventListener("focus", function () { if (self.o.mode !== "follow") self._scheduleShow(null); });
+    this.t.addEventListener("blur", function () { self._scheduleHide(); });
+  };
+
+  Tip.prototype.destroy = function () { clearTimeout(this.showT); clearTimeout(this.hideT); this._hide(); };
+
+  // Escape dismisses whatever is open + reposition on scroll/resize
+  var registry = [];
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") registry.forEach(function (t) { if (t.open) { clearTimeout(t.showT); t._hide(); } });
+  });
+  var reflow = function () { registry.forEach(function (t) { if (t.open && t.o.mode === "anchored") t._place(); }); };
+  window.addEventListener("scroll", reflow, { passive: true, capture: true });
+  window.addEventListener("resize", reflow);
+
+  // --- public API -------------------------------------------------------
+  var Tooltip = {
+    attach: function (target, opts) { var t = new Tip(target, opts); registry.push(t); return t; },
+    init: function (root) {
+      root = root || document;
+      root.querySelectorAll("[data-tooltip]").forEach(function (el) {
+        if (el.__tt) return; el.__tt = 1;
+        var raw = el.getAttribute("data-tooltip");
+        var content = raw;
+        if (raw && raw.charAt(0) === "{") { try { content = JSON.parse(raw); } catch (e) {} }
+        Tooltip.attach(el, {
+          content: content,
+          placement: el.getAttribute("data-placement") || "top",
+          mode: el.getAttribute("data-mode") || "anchored",
+          hoverable: el.hasAttribute("data-hoverable"),
+          boundary: el.getAttribute("data-boundary") ? document.querySelector(el.getAttribute("data-boundary")) : null,
+        });
+      });
+      root.querySelectorAll("[data-tooltip-truncate]").forEach(function (el) {
+        if (el.__tt) return; el.__tt = 1;
+        Tooltip.attach(el, { content: el.textContent.trim(), placement: "top", onlyIfTruncated: true });
+      });
+    },
+    _setReporter: function (fn) { reporter = fn; },
+  };
+  window.Tooltip = Tooltip;
+
+  /* ============================================================
+     DEMO WIRING (not part of the engine)
+     ============================================================ */
+  document.addEventListener("DOMContentLoaded", function () {
+    Tooltip.init();
+
+    // telemetry -> instrument strip
+    var inst = document.getElementById("instrument");
+    var el = {
+      mode: document.getElementById("r-mode"),
+      pref: document.getElementById("r-pref"),
+      resolved: document.getElementById("r-resolved"),
+      collision: document.getElementById("r-collision"),
+      xy: document.getElementById("r-xy"),
+    };
+    var idleT = 0;
+    Tooltip._setReporter(function (i) {
+      inst.classList.add("live");
+      clearTimeout(idleT);
+      el.mode.textContent = i.mode; el.mode.className = "v accent";
+      el.pref.textContent = i.pref; el.pref.className = "v";
+      el.resolved.textContent = i.resolved; el.resolved.className = "v accent";
+      var col = i.collision;
+      el.collision.textContent = col;
+      el.collision.className = "v " + (col === "none" ? "good" : "warn");
+      el.xy.textContent = i.x + ", " + i.y; el.xy.className = "v";
+      idleT = setTimeout(function () {
+        inst.classList.remove("live");
+        Object.keys(el).forEach(function (k) { el[k].classList.add("idle"); });
+        el.mode.textContent = "idle"; el.pref.textContent = "—"; el.resolved.textContent = "—";
+        el.collision.textContent = "none"; el.xy.textContent = "—";
+      }, 1400);
+    });
+
+    // theme toggle
+    var root = document.documentElement, btn = document.getElementById("themeBtn");
+    btn.addEventListener("click", function () {
+      var cur = root.getAttribute("data-theme");
+      if (!cur) cur = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      root.setAttribute("data-theme", cur === "dark" ? "light" : "dark");
+    });
+
+    // ---- follow-mode plot ----
+    var cv = document.getElementById("plot"), alt = document.getElementById("plot-alt");
+    var ctx = cv.getContext("2d");
+    var field = [];
+    function seed() {
+      field = [];
+      for (var i = 0; i < 26; i++) field.push({ x: (i + .5) / 26, a: 0.15 + 0.85 * Math.abs(Math.sin(i * 1.9) * Math.cos(i * 0.7)) });
+    }
+    function draw() {
+      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      var w = cv.clientWidth, h = cv.clientHeight;
+      cv.width = w * dpr; cv.height = h * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      var cs = getComputedStyle(document.documentElement);
+      var accent = cs.getPropertyValue("--accent").trim();
+      var ink3 = cs.getPropertyValue("--ink-3").trim();
+      ctx.clearRect(0, 0, w, h);
+      // faint grid
+      ctx.strokeStyle = cs.getPropertyValue("--border").trim(); ctx.lineWidth = 1;
+      for (var gx = 0; gx <= 10; gx++) { var xx = gx / 10 * w; ctx.globalAlpha = .5; ctx.beginPath(); ctx.moveTo(xx, 0); ctx.lineTo(xx, h); ctx.stroke(); }
+      ctx.globalAlpha = 1;
+      // bars
+      var bw = w / field.length;
+      for (var i = 0; i < field.length; i++) {
+        var bh = field[i].a * (h - 24);
+        ctx.fillStyle = accent; ctx.globalAlpha = 0.22 + 0.5 * field[i].a;
+        ctx.fillRect(i * bw + 3, h - bh, bw - 6, bh);
+      }
+      ctx.globalAlpha = 1;
+    }
+    seed(); draw();
+    window.addEventListener("resize", draw);
+
+    // read density at cursor -> string for the follow tooltip + a11y mirror
+    function readAt(clientX) {
+      var r = cv.getBoundingClientRect();
+      var fx = clamp((clientX - r.left) / r.width, 0, 0.9999);
+      var idx = Math.floor(fx * field.length);
+      var v = field[idx] ? field[idx].a : 0;
+      return { t: Math.round(fx * 512), density: v.toFixed(2), bin: idx };
+    }
+    var follow = Tooltip.attach(cv, {
+      mode: "follow",
+      offset: 16,
+      content: function (e) {
+        var d = readAt(e.x !== undefined ? e.x : e.clientX);
+        return { title: "density " + d.density, sub: "t=" + d.t + " · bin " + d.bin + "/26" };
+      },
+    });
+    // accessible alternative: mirror to visible readout (reachable, not moving)
+    cv.addEventListener("pointermove", function (e) {
+      var d = readAt(e.clientX);
+      alt.innerHTML = "peak density <b>" + d.density + "</b> at t=<b>" + d.t + "</b> (bin " + d.bin + ")";
+    });
+    cv.addEventListener("pointerleave", function () { alt.textContent = "move over the plot — density under the cursor appears here"; });
+    cv.addEventListener("focus", function () { alt.innerHTML = "focused — peak <b>0.94</b> at t=<b>63</b>, mean <b>0.41</b>, 512 samples"; });
+  });
+})();
+</script>
+</body>
+</html>

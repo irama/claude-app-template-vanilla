@@ -4,9 +4,9 @@
 
 ## Registered Patterns
 
-| Pattern                                                     | Component(s) | Keywords |
-| ----------------------------------------------------------- | ------------ | -------- |
-| _(none yet — add entries as you build reusable components)_ |              |          |
+| Pattern                                                       | Component(s)                              | Keywords                                                           |
+| ------------------------------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------ |
+| Tooltip (portaled, collision-aware; anchored + cursor-follow) | `src/lib/tooltip` (`useTooltip`, `<Tip>`) | tooltip, hover, hint, portal, placement, flip, follow, clip, title |
 
 ## Before you build — mandatory search process
 
@@ -26,6 +26,29 @@ If you find an existing component that's close but not identical: **add a prop, 
 2. **Update this registry** when you add a genuinely reusable pattern.
 3. **No silent divergence** — if a component is used in two places, they share one source file. Never copy-paste to make a "slightly different version".
 4. **Variant props over duplication** — if you need a minor variant, add an optional prop. Only create a new component if the variants are fundamentally incompatible (different data shape, different interaction model).
+
+---
+
+## Tooltips — `src/lib/tooltip`
+
+One engine, portaled to a top-layer container, so a tip is **never** clipped by an ancestor's `overflow`. Placement is a preferred hint only — the engine shifts → flips → re-anchors to stay on-screen. Shows on hover **and** keyboard focus, dismissible with Escape, honours reduced-motion. Styles ride the `--tt-*` tokens in `tooltip.css` (retint to match your app). **Never use the native `title=` attribute for tooltips** — it's unstyleable, invisible on touch, and double-read by screen readers.
+
+**The one decision:** _anchored_ (default) pins to a single element — icons, buttons, truncated text. _follow_ (`mode: 'follow'`) tracks the cursor — charts/canvas/maps only. A tooltip is text-only; if it needs a link or button, it's a popover, not this.
+
+```tsx
+import { useTooltip, Tip } from '@/lib/tooltip';
+
+// wrap a single element child (decorative: the button keeps its own aria-label)
+<Tip content="Archive" decorative>
+  <button aria-label="Archive">🗄</button>
+</Tip>;
+
+// the hook, when you own the ref (canvas, follow mode, boundary, onlyIfTruncated, anchor)
+const ref = useTooltip<HTMLCanvasElement>({ mode: 'follow', content: (e) => readAt(e.x) });
+<canvas ref={ref} role="img" aria-label="…full description…" />;
+```
+
+Full API, tuning knobs, and a symptom→cause→fix debug playbook: the bundled tooltip skill at `.claude/skills/tooltip/SKILL.md`.
 
 ---
 
