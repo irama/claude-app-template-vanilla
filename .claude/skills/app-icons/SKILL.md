@@ -62,6 +62,11 @@ Key flags (full list in the script header):
 - `--title` / `--tagline` — OG text. Omit `--tagline` to drop the subline + rule.
 - `--name` / `--short` — manifest `name` / `short_name`.
 - `--radius` — icon corner fraction (default `0.18`).
+- `--trim` / `--no-trim` — auto-crop the source's dead border so the mark fills
+  the frame. **On by default for raster** (marks routinely ship baked-in margin),
+  off for SVG. `--trim-tol <0..1>` sets the colour-distance threshold from the
+  corner background (default `0.06`; raise it to shave a soft glow/shadow, lower
+  it to keep faint edges). `--trim-pad` re-adds breathing room (default `0`).
 - `--no-og`, `--no-manifest` — skip those outputs.
 
 The script prints the exact `metadata` + `viewport` block to paste into
@@ -83,13 +88,20 @@ The script prints the exact `metadata` + `viewport` block to paste into
 
 ## Design guidance
 
+- **Fill the frame — no padding.** Every non-maskable icon and favicon fills its
+  frame edge to edge; the mark IS the icon and a favicon has no pixels to waste on
+  whitespace. The script enforces this (zero layout pad + raster auto-trim). The
+  only padded outputs are the `maskable` variants — see below. If a source mark
+  arrives with baked-in margin, `--trim` removes it; check the result and bump
+  `--trim-tol` if a soft glow/shadow left the crop loose.
 - **Contrast the mark against `--bg`.** White/light mark on a dark ink background
   is the safe default — legible on any tab colour, no theme flicker.
 - **Wordmarks squash.** A wide logo shrinks to nothing in a square. Prefer a
   compact glyph/monogram; if only a wordmark exists, expect faint 16px favicons —
   the bold stroke helps but can't fully rescue fine detail.
 - **Maskable ≠ standard.** The maskable variants pad to the Android safe zone on
-  purpose; don't "fix" the extra whitespace.
+  purpose; that inset is spec, not decoration — don't "fix" it, and don't confuse
+  it with the fill-the-frame rule above.
 - Keep the source mark in the repo (e.g. `brand/`) so a rebrand is one re-run.
 
 ## Verify

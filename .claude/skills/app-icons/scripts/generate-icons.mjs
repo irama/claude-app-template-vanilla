@@ -27,6 +27,13 @@
 //   --name <str>        Manifest name.                         [default: 'App']
 //   --short <str>       Manifest short_name.            [default: --name value]
 //   --radius <0..0.5>   Icon corner radius fraction.            [default: 0.18]
+//   --trim              Auto-crop the source's dead border so the mark fills the
+//                       frame. ON by default for raster; OFF for SVG (already
+//                       fills its viewBox). Disable with --no-trim.
+//   --trim-tol <0..1>   Trim colour-distance threshold from the corner bg.
+//                                                                [default: 0.06]
+//   --trim-pad <0..0.2> Fraction of the detected mark re-added as breathing room
+//                       after trimming.                          [default: 0]
 //   --no-og             Skip the OpenGraph/Twitter image.
 //   --no-manifest       Skip manifest.webmanifest.
 //
@@ -70,6 +77,9 @@ const cfg = {
   title: args.title || args.name || 'App',
   tagline: typeof args.tagline === 'string' ? args.tagline : '',
   radius: args.radius != null ? Number(args.radius) : 0.18,
+  trim: args.trim, // resolved against source type below (default: on for raster)
+  trimTol: args['trim-tol'] != null ? Number(args['trim-tol']) : 0.06,
+  trimPad: args['trim-pad'] != null ? Number(args['trim-pad']) : 0,
   og: args.og !== false,
   manifest: args.manifest !== false,
 };
@@ -127,11 +137,14 @@ if (isSvg) {
 }
 
 function iconHtml(mark, size, boxW, radiusPx) {
+  // width AND height = boxW + object-fit:contain → the mark fills its box on the
+  // constraining axis without ever clipping (letterboxes the other axis if the
+  // mark isn't square). Inline SVGs honour their viewBox the same way.
   return `<!doctype html><html><head><style>
     html,body{margin:0;padding:0}
     .icon{width:${size}px;height:${size}px;background:${cfg.bg};border-radius:${radiusPx}px;
       display:flex;align-items:center;justify-content:center;overflow:hidden}
-    .icon svg,.icon img{width:${boxW}px;height:auto;display:block}
+    .icon svg,.icon img{width:${boxW}px;height:${boxW}px;object-fit:contain;display:block}
   </style></head><body><div class="icon">${mark}</div></body></html>`;
 }
 
@@ -144,14 +157,86 @@ async function shoot(html, size, sel = '.icon') {
   return page.locator(sel).screenshot({ omitBackground: false });
 }
 
+// Auto-trim the source's dead border so the mark fills the frame. Raster marks
+// routinely ship with baked-in margin; combined with a layout pad that produced
+// double padding and a mark lost in whitespace. Default: on for raster, off for
+// SVG (an SVG already fills its viewBox).
+const doTrim = isSvg ? cfg.trim === true : cfg.trim !== false;
+
+// Crop a raster <img> to the bounding box of its content, then square it around
+// that box's centre so icons never stretch. Content = any pixel whose alpha is
+// meaningful (transparent-background marks) or whose colour is more than
+// `trimTol` away from the averaged corner colour (solid/gradient backgrounds).
+async function trimRaster(imgTag) {
+  const m = imgTag.match(/src="([^"]+)"/);
+  if (!m) return imgTag;
+  const cropped = await page.evaluate(async ({ src, tol, pad }) => {
+    const img = new Image();
+    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = src; });
+    const w = img.naturalWidth, h = img.naturalHeight;
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const d = ctx.getImageData(0, 0, w, h).data;
+    const idx = (x, y) => (y * w + x) * 4;
+    let hasAlpha = false;
+    for (let i = 3; i < d.length; i += 4) { if (d[i] < 250) { hasAlpha = true; break; } }
+    const corners = [[0, 0], [w - 1, 0], [0, h - 1], [w - 1, h - 1]];
+    let br = 0, bgc = 0, bb = 0;
+    for (const [x, y] of corners) { const i = idx(x, y); br += d[i]; bgc += d[i + 1]; bb += d[i + 2]; }
+    br /= 4; bgc /= 4; bb /= 4;
+    const T = tol * 255;
+    const isContent = (x, y) => {
+      const i = idx(x, y);
+      if (hasAlpha) return d[i + 3] > 16;
+      const dr = d[i] - br, dg = d[i + 1] - bgc, db = d[i + 2] - bb;
+      return Math.sqrt(dr * dr + dg * dg + db * db) > T;
+    };
+    let minX = w, minY = h, maxX = -1, maxY = -1;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      if (isContent(x, y)) {
+        if (x < minX) minX = x; if (x > maxX) maxX = x;
+        if (y < minY) minY = y; if (y > maxY) maxY = y;
+      }
+    }
+    if (maxX < minX) return null; // nothing distinct from the border — leave as-is
+    let bw = maxX - minX + 1, bh = maxY - minY + 1;
+    const padPx = Math.round(Math.max(bw, bh) * pad);
+    minX = Math.max(0, minX - padPx); minY = Math.max(0, minY - padPx);
+    maxX = Math.min(w - 1, maxX + padPx); maxY = Math.min(h - 1, maxY + padPx);
+    bw = maxX - minX + 1; bh = maxY - minY + 1;
+    const side = Math.max(bw, bh);
+    const cx = minX + bw / 2, cy = minY + bh / 2;
+    let sx = Math.round(cx - side / 2), sy = Math.round(cy - side / 2);
+    sx = Math.max(0, Math.min(sx, w - side));
+    sy = Math.max(0, Math.min(sy, h - side));
+    const sq = Math.min(side, w - sx, h - sy);
+    const oc = document.createElement('canvas');
+    oc.width = sq; oc.height = sq;
+    oc.getContext('2d').drawImage(c, sx, sy, sq, sq, 0, 0, sq, sq);
+    return oc.toDataURL('image/png');
+  }, { src: m[1], tol: cfg.trimTol, pad: cfg.trimPad });
+  return cropped ? `<img src="${cropped}" alt=""/>` : imgTag;
+}
+
+if (!isSvg && doTrim) {
+  markPlain = await trimRaster(markPlain);
+  markBold = markPlain;
+  console.log('trimmed source to content bounds');
+}
+
 const R = cfg.radius;
 const pngs = {};
 
-// PWA + apple + standard icons (plain mark, generous padding)
+// PWA + apple + standard icons — fill the frame, NO padding. The mark is the
+// mark; whitespace only wastes pixels a favicon can't spare. The maskable
+// variants are the sole exception: their 30% inset is the Android safe zone, not
+// decorative padding — don't "fix" it.
 const iconTargets = [
-  ['icon-192.png', 192, 0.18, R],
-  ['icon-512.png', 512, 0.18, R],
-  ['apple-touch-icon.png', 180, 0.16, 0], // OS masks apple icons itself
+  ['icon-192.png', 192, 0, R],
+  ['icon-512.png', 512, 0, R],
+  ['apple-touch-icon.png', 180, 0, 0], // OS masks apple icons itself
   ['icon-maskable-192.png', 192, 0.30, 0], // safe-zone padding, full-bleed bg
   ['icon-maskable-512.png', 512, 0.30, 0],
 ];
@@ -161,9 +246,9 @@ for (const [name, size, pad, radiusPct] of iconTargets) {
   console.log('wrote', name);
 }
 
-// Tiny favicons (bold mark, tight crop)
+// Tiny favicons (bold mark) — fill the frame edge to edge.
 for (const [name, size] of [['favicon-16x16.png', 16], ['favicon-32x32.png', 32], ['favicon-48x48.png', 48]]) {
-  const buf = await shoot(iconHtml(markBold, size, size * 0.9, size * R), size);
+  const buf = await shoot(iconHtml(markBold, size, size, size * R), size);
   writeFileSync(`${cfg.out}/${name}`, buf);
   pngs[size] = buf;
   console.log('wrote', name);
