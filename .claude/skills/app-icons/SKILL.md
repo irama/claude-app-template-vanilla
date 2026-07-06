@@ -54,14 +54,14 @@ From the project root:
 Key flags (full list in the script header):
 
 - `--src` **(required)** — SVG (inlined, recolourable) or raster (`.png/.jpg/.webp`).
-- `--bg` — icon + OG background. Pick a solid brand colour; a dark ink reads well
-  on both light and dark browser tabs.
+- `--bg` — background for the maskable safe zone, the OG card, and SVG marks.
+  Pick a solid brand colour; a dark ink reads well on both light and dark tabs.
+  Not painted behind a transparent raster mark (that stays transparent).
 - `--recolor` — recolour every SVG fill (e.g. `#ffffff` for a white mark on a dark
   `--bg`). SVG sources only; also enables the bold small-favicon stroke.
 - `--accent` / `--fg` / `--muted` — OG glow-rule / title / tagline colours.
 - `--title` / `--tagline` — OG text. Omit `--tagline` to drop the subline + rule.
 - `--name` / `--short` — manifest `name` / `short_name`.
-- `--radius` — icon corner fraction (default `0.18`).
 - `--trim` / `--no-trim` — auto-crop the source's dead border so the mark fills
   the frame. **On by default for raster** (marks routinely ship baked-in margin),
   off for SVG. `--trim-tol <0..1>` sets the colour-distance threshold from the
@@ -94,6 +94,17 @@ The script prints the exact `metadata` + `viewport` block to paste into
   only padded outputs are the `maskable` variants — see below. If a source mark
   arrives with baked-in margin, `--trim` removes it; check the result and bump
   `--trim-tol` if a soft glow/shadow left the crop loose.
+- **Never bake a corner radius.** Every platform (iOS, Android, Windows tiles,
+  macOS dock) masks app-icon corners itself. A baked radius double-rounds, and on
+  a transparent mark it leaves blank/white triangles in the corners — the exact
+  bug this rule prevents. Ship square; the OS rounds.
+- **Transparency in → transparency out.** A transparent-background source (PNG/SVG
+  alpha) produces transparent icons — no `--bg` is painted behind it, so it sits
+  cleanly on any surface. An **opaque** source already carries its own background,
+  so it goes full-bleed (`cover`) — scaled to fill the frame, no letterbox, no
+  added fill. `--bg` then only backs the maskable safe zone and the OG card.
+  (Caveat: iOS composites transparent apple-touch icons on black; supply an opaque
+  mark if that matters.)
 - **Contrast the mark against `--bg`.** White/light mark on a dark ink background
   is the safe default — legible on any tab colour, no theme flicker.
 - **Wordmarks squash.** A wide logo shrinks to nothing in a square. Prefer a

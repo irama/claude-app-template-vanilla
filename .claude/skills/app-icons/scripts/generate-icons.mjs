@@ -26,7 +26,6 @@
 //   --tagline <str>     OG subline.                                   [optional]
 //   --name <str>        Manifest name.                         [default: 'App']
 //   --short <str>       Manifest short_name.            [default: --name value]
-//   --radius <0..0.5>   Icon corner radius fraction.            [default: 0.18]
 //   --trim              Auto-crop the source's dead border so the mark fills the
 //                       frame. ON by default for raster; OFF for SVG (already
 //                       fills its viewBox). Disable with --no-trim.
@@ -76,7 +75,6 @@ const cfg = {
   short: args.short || args.name || 'App',
   title: args.title || args.name || 'App',
   tagline: typeof args.tagline === 'string' ? args.tagline : '',
-  radius: args.radius != null ? Number(args.radius) : 0.18,
   trim: args.trim, // resolved against source type below (default: on for raster)
   trimTol: args['trim-tol'] != null ? Number(args['trim-tol']) : 0.06,
   trimPad: args['trim-pad'] != null ? Number(args['trim-pad']) : 0,
@@ -136,25 +134,28 @@ if (isSvg) {
   markBold = img;
 }
 
-function iconHtml(mark, size, boxW, radiusPx) {
-  // width AND height = boxW + object-fit:contain → the mark fills its box on the
-  // constraining axis without ever clipping (letterboxes the other axis if the
-  // mark isn't square). Inline SVGs honour their viewBox the same way.
+function iconHtml(mark, size, boxW, bg, fit) {
+  // NEVER bake a corner radius — every platform (iOS, Android, Windows tiles,
+  // macOS dock) masks app-icon corners itself; a baked radius double-rounds and,
+  // on a transparent mark, leaves white/blank triangles in the corners.
+  // `bg` null → no fill (paired with omitBackground so a transparent source stays
+  // transparent). `fit`: contain shows the whole mark; cover fills the frame edge
+  // to edge (used for opaque sources that already carry their own background).
   return `<!doctype html><html><head><style>
     html,body{margin:0;padding:0}
-    .icon{width:${size}px;height:${size}px;background:${cfg.bg};border-radius:${radiusPx}px;
+    .icon{width:${size}px;height:${size}px;${bg ? `background:${bg};` : ''}
       display:flex;align-items:center;justify-content:center;overflow:hidden}
-    .icon svg,.icon img{width:${boxW}px;height:${boxW}px;object-fit:contain;display:block}
+    .icon svg,.icon img{width:${boxW}px;height:${boxW}px;object-fit:${fit};display:block}
   </style></head><body><div class="icon">${mark}</div></body></html>`;
 }
 
 // ---- render ----
 const browser = await chromium.launch();
 const page = await browser.newPage({ deviceScaleFactor: 1 });
-async function shoot(html, size, sel = '.icon') {
+async function shoot(html, size, sel = '.icon', omitBackground = false) {
   await page.setViewportSize({ width: size, height: size });
   await page.setContent(html, { waitUntil: 'networkidle' });
-  return page.locator(sel).screenshot({ omitBackground: false });
+  return page.locator(sel).screenshot({ omitBackground });
 }
 
 // Auto-trim the source's dead border so the mark fills the frame. Raster marks
@@ -226,29 +227,52 @@ if (!isSvg && doTrim) {
   console.log('trimmed source to content bounds');
 }
 
-const R = cfg.radius;
+// Does the (possibly trimmed) raster mark carry transparency? Transparent marks
+// stay transparent (contain, no fill); opaque marks already own a background, so
+// they go full-bleed (cover). SVG marks render on --bg so a recoloured mark reads.
+let srcHasAlpha = false;
+if (!isSvg) {
+  const m = markPlain.match(/src="([^"]+)"/);
+  srcHasAlpha = m ? await page.evaluate(async (src) => {
+    const img = new Image();
+    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = src; });
+    const c = document.createElement('canvas');
+    c.width = img.naturalWidth; c.height = img.naturalHeight;
+    const x = c.getContext('2d');
+    x.drawImage(img, 0, 0);
+    const d = x.getImageData(0, 0, c.width, c.height).data;
+    for (let i = 3; i < d.length; i += 4) { if (d[i] < 250) return true; }
+    return false;
+  }, m[1]) : false;
+}
+
+// Per-source render mode. `iconBg` null → transparent output (omitBackground).
+const iconBg = isSvg ? cfg.bg : null;
+const iconFit = isSvg || srcHasAlpha ? 'contain' : 'cover';
+const iconOmit = !isSvg; // raster: shoot on transparency; keep alpha through
+if (!isSvg) console.log(`source is ${srcHasAlpha ? 'transparent → transparent icons' : 'opaque → full-bleed icons'}`);
+
 const pngs = {};
 
-// PWA + apple + standard icons — fill the frame, NO padding. The mark is the
-// mark; whitespace only wastes pixels a favicon can't spare. The maskable
-// variants are the sole exception: their 30% inset is the Android safe zone, not
-// decorative padding — don't "fix" it.
+// PWA + apple + standard icons — fill the frame, NO padding, NO baked radius
+// (platforms round corners themselves). The maskable variants are the sole
+// exception: their 30% inset is the Android safe zone, on a full-bleed --bg.
 const iconTargets = [
-  ['icon-192.png', 192, 0, R],
-  ['icon-512.png', 512, 0, R],
-  ['apple-touch-icon.png', 180, 0, 0], // OS masks apple icons itself
-  ['icon-maskable-192.png', 192, 0.30, 0], // safe-zone padding, full-bleed bg
-  ['icon-maskable-512.png', 512, 0.30, 0],
+  ['icon-192.png', 192, 0, iconBg, iconFit, iconOmit],
+  ['icon-512.png', 512, 0, iconBg, iconFit, iconOmit],
+  ['apple-touch-icon.png', 180, 0, iconBg, iconFit, iconOmit],
+  ['icon-maskable-192.png', 192, 0.30, cfg.bg, 'contain', false], // safe-zone, filled bg
+  ['icon-maskable-512.png', 512, 0.30, cfg.bg, 'contain', false],
 ];
-for (const [name, size, pad, radiusPct] of iconTargets) {
-  const buf = await shoot(iconHtml(markPlain, size, size * (1 - pad), size * radiusPct), size);
+for (const [name, size, pad, bg, fit, omit] of iconTargets) {
+  const buf = await shoot(iconHtml(markPlain, size, size * (1 - pad), bg, fit), size, '.icon', omit);
   writeFileSync(`${cfg.out}/${name}`, buf);
   console.log('wrote', name);
 }
 
-// Tiny favicons (bold mark) — fill the frame edge to edge.
+// Tiny favicons (bold mark) — fill the frame edge to edge, same transparency rule.
 for (const [name, size] of [['favicon-16x16.png', 16], ['favicon-32x32.png', 32], ['favicon-48x48.png', 48]]) {
-  const buf = await shoot(iconHtml(markBold, size, size, size * R), size);
+  const buf = await shoot(iconHtml(markBold, size, size, iconBg, iconFit), size, '.icon', iconOmit);
   writeFileSync(`${cfg.out}/${name}`, buf);
   pngs[size] = buf;
   console.log('wrote', name);
@@ -259,10 +283,10 @@ if (isSvg) {
   const AR_M = markPlain.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/);
   const vbW = AR_M ? Number(AR_M[1]) : 100;
   const vbH = AR_M ? Number(AR_M[2]) : 100;
-  const S = 512, pad = 0.22, boxW = S * (1 - pad), markH = boxW * (vbH / vbW);
-  const x = (S - boxW) / 2, y = (S - markH) / 2, r = Math.round(S * R);
+  const S = 512, boxW = S, markH = boxW * (vbH / vbW); // full-bleed, no padding
+  const x = (S - boxW) / 2, y = (S - markH) / 2;
   const scalable = `<svg xmlns="http://www.w3.org/2000/svg" width="${S}" height="${S}" viewBox="0 0 ${S} ${S}">
-  <rect width="${S}" height="${S}" rx="${r}" ry="${r}" fill="${cfg.bg}"/>
+  <rect width="${S}" height="${S}" fill="${cfg.bg}"/>
   <svg x="${x}" y="${y}" width="${boxW}" height="${markH}" viewBox="0 0 ${vbW} ${vbH}" preserveAspectRatio="xMidYMid meet">${markPlain}</svg>
 </svg>`;
   writeFileSync(`${cfg.out}/icon.svg`, scalable);
