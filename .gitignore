@@ -49,3 +49,7 @@ Thumbs.db
 
 # local work-in-progress (not for version control)
 WIP-LOCAL/
+
+# claude multi-thread worktrees + local multi-root workspace file
+.claude/worktrees/
+claude-app-template-vanilla.code-workspace
