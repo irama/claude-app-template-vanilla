@@ -63,6 +63,15 @@ Read [`docs/testing-workflow.md`](docs/testing-workflow.md) for when to write te
 - Zod validation on all API inputs
 - Conventional commits
 
+## Planning Workflow (Matt Pocock skills)
+
+Planning/alignment skills are user-level — see `~/.claude/CLAUDE.md` § "Matt Pocock skills — global defaults":
+
+- Fuzzy or large feature → `/grill-with-docs` (sharpens the plan; creates `CONTEXT.md` + `docs/adr/` as decisions land) or `/wayfinder` (multi-session work as tracked tickets)
+- Spec agreed → `/to-tickets` to break it down, `/implement` to build (TDD at agreed seams; commits to the thread branch only)
+- Before merge → `/spec-review` (standards + spec conformance) alongside built-in `/code-review` (correctness bugs)
+- Domain language lives in `CONTEXT.md` (repo root), decisions in `docs/adr/`. Tickets before a GitHub remote exists → local markdown in `.scratch/` (gitignored)
+
 ## UI Quality Gates
 
 Read [`docs/ui-gates.md`](docs/ui-gates.md) **before any UI task** — it is the single mandatory checklist (search-before-build, mobile 375px, WCAG AA both modes, keyboard, motion, optimistic mutations, undo toasts, loading/error states, tokens, performance). Its "Which gates apply" table scopes what to check per task type.

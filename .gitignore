@@ -50,6 +50,9 @@ Thumbs.db
 # local work-in-progress (not for version control)
 WIP-LOCAL/
 
+# local tickets before a remote tracker exists (Matt Pocock skills)
+.scratch/
+
 # claude multi-thread worktrees + local multi-root workspace file
 .claude/worktrees/
 claude-app-template-vanilla.code-workspace
