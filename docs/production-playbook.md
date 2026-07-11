@@ -75,6 +75,17 @@ and a `books`-style multi-track audit for money/calculation logic.
 - Weekly Dependabot PRs triaged; high-severity CVEs patched within the week.
 - Quarterly: re-run `/prod-ready` + restore drill + multi-track audit for financial apps.
 
+## Walking the user through service consoles (rule)
+
+When any step needs the user to click through a service dashboard (Sentry, Supabase, Vercel, GitHub), give **step-by-step instructions with direct deep links every time** — construct the URL from the service's known pattern rather than describing menus. Verified patterns:
+
+- **Sentry DSN**: `https://<org>.sentry.io/settings/projects/<project>/keys/` (e.g. `https://peak-state.sentry.io/settings/projects/nav-peakstate-global/keys/`). Menu paths are unreliable — link straight to the keys page. Wizard note: `npx @sentry/wizard` hardcodes the DSN in its config files and adds a `.env.sentry-build-plugin` token file — prefer env-driven DSN (`NEXT_PUBLIC_SENTRY_DSN`) and put `SENTRY_AUTH_TOKEN` in Vercel for source maps.
+- **Vercel env vars**: `https://vercel.com/<team>/<project>/settings/environment-variables`
+- **Supabase backups/PITR**: `https://supabase.com/dashboard/project/<ref>/database/backups`
+- **GitHub Actions secrets**: `https://github.com/<owner>/<repo>/settings/secrets/actions`
+
+If a link pattern turns out wrong, fix it here in the same turn (doc bug).
+
 ## Backups & data protection
 
 - **Database**: Supabase PITR on every client project with real user data (paid plan; non-negotiable). Plus nightly `pg_dump` via **GitHub Actions** (not n8n — VPS OOM lesson) to a private repo or R2 bucket.
