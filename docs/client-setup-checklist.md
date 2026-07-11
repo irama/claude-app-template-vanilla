@@ -33,7 +33,7 @@ project's first GitHub issue (or `.scratch/setup.md` pre-remote) and check items
 
 ## 4. Observability (template ships the code — wire the accounts)
 
-- [ ] Sentry project created; `NEXT_PUBLIC_SENTRY_DSN` set in Vercel
+- [ ] Sentry project created; DSN from `https://<org>.sentry.io/settings/projects/<project>/keys/`; `NEXT_PUBLIC_SENTRY_DSN` set in Vercel (+ `SENTRY_AUTH_TOKEN` for source maps)
 - [ ] Verify one test error arrives in Sentry from a Preview deploy
 - [ ] `/api/health` returns 200 + commit SHA on the deployed URL
 - [ ] External uptime monitor on `/api/health` → alert to email/Slack
