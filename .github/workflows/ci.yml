@@ -48,5 +48,5 @@ jobs:
         run: npm run size
 
       - name: Security audit
+        # Blocking on purpose (docs/production-playbook.md) — a gate that can't fail is not a gate.
         run: npm audit --audit-level=high
-        continue-on-error: true  # Don't block CI, but surface the output
