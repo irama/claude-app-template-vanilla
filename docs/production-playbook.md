@@ -83,6 +83,7 @@ When any step needs the user to click through a service dashboard (Sentry, Supab
 - **Vercel env vars**: `https://vercel.com/<team>/<project>/settings/environment-variables`
 - **Supabase backups/PITR**: `https://supabase.com/dashboard/project/<ref>/database/backups`
 - **GitHub Actions secrets**: `https://github.com/<owner>/<repo>/settings/secrets/actions`
+- **Better Uptime**: monitors list `https://uptime.betterstack.com/monitors` (monitor: `/monitors/<id>`); API tokens `https://uptime.betterstack.com` → Integrations → API tokens. `/prod-ready` check 15 can create monitors/heartbeats itself via the RW token (held in the status hub's `.env.local`).
 
 If a link pattern turns out wrong, fix it here in the same turn (doc bug).
 
