@@ -88,7 +88,9 @@ If a link pattern turns out wrong, fix it here in the same turn (doc bug).
 
 ## Backups & data protection
 
-- **Database**: Supabase PITR on every client project with real user data (paid plan; non-negotiable). Plus nightly `pg_dump` via **GitHub Actions** (not n8n — VPS OOM lesson) to a private repo or R2 bucket.
+- **Database**: Supabase PITR on every client project with real user data (paid plan; non-negotiable). Plus nightly `pg_dump` via **GitHub Actions** (not n8n — VPS OOM lesson) → **Cloudflare R2**, not GitHub artifacts. Ship [`.github/workflows/db-backup.yml`](../.github/workflows/db-backup.yml) (R2 variant). Why R2 over GitHub artifacts: GitHub's free artifact storage is 500 MB — daily dumps × 90-day retention blow it; R2 storage is effectively free and unlimited, and Actions minutes (~3 min/run) stay far under the 2,000/mo free tier.
+- **Backup bucket rules**: a **dedicated PRIVATE R2 bucket for DB dumps** — never the app's media bucket (that may be public-read; a DB dump in a public bucket is a breach). Set a lifecycle rule on the bucket (delete after N days) since R2 has no per-object TTL.
+- **One central bucket vs per-client?** For **our own** apps (peakstate/irama), a single central backup bucket with per-app key prefixes (`<app>/<date>.dump`) is fine — simplest. For **client** work, **per-client buckets in the client's own Cloudflare account** (Model A): a central bucket holding every client's DB dumps makes us data custodian for all of them (DPA/liability) and turns one bucket compromise into an all-client breach. Isolation wins; the extra bucket per client is cheap.
 - **Restore drill before launch**: restore the dump into a scratch project once. A backup never restored is a hope, not a backup.
 - **Automation/workflow configs** (n8n, trigger.dev): snapshot JSON to git with a `backup: <name> pre-edit` commit before every edit.
 - **Object storage**: second-bucket `rclone sync` monthly + lifecycle rules.

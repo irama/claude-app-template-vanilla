@@ -1,0 +1,51 @@
+# Nightly Supabase backup → Cloudflare R2 (docs/production-playbook.md § Backups).
+# R2-only (no GitHub artifact) so it uses zero GitHub storage quota. Supabase
+# Free has no scheduled backups — this is the restore path until PITR/Pro.
+#
+# Required GitHub secrets (Settings → Secrets and variables → Actions):
+#   PROD_DATABASE_URL     Session Pooler connection string (same as .env.local)
+#   R2_ACCOUNT_ID         Cloudflare account id
+#   R2_ACCESS_KEY_ID      R2 API token (Object Read & Write) key id
+#   R2_SECRET_ACCESS_KEY  R2 API token secret
+#   BACKUP_R2_BUCKET      a DEDICATED PRIVATE bucket for DB dumps — NEVER the
+#                         app's media bucket (that may be public-read).
+#
+# Retention: set a lifecycle rule on the backup bucket in the Cloudflare
+# dashboard (R2 → bucket → Settings → Object lifecycle rules → delete after N
+# days). Change <app> below to this project's slug.
+name: DB Backup
+
+on:
+  schedule:
+    - cron: '0 14 * * *' # 00:00 AEST — adjust per project region
+  workflow_dispatch:
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    container: postgres:17 # pg_dump 17 matches the server version
+    steps:
+      - name: pg_dump
+        run: pg_dump "$PROD_DATABASE_URL" --format=custom --no-owner --file=backup.dump
+        env:
+          PROD_DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+
+      - name: Install awscli
+        run: apt-get update && apt-get install -y awscli
+
+      - name: Upload to R2
+        run: |
+          KEY="<app>/$(date +%Y-%m-%d).dump"
+          aws s3 cp backup.dump "s3://$BACKUP_R2_BUCKET/$KEY" \
+            --endpoint-url "https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com"
+          echo "Uploaded s3://$BACKUP_R2_BUCKET/$KEY"
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          BACKUP_R2_BUCKET: ${{ secrets.BACKUP_R2_BUCKET }}
+
+      # Restore drill (manual): aws s3 cp s3://$BACKUP_R2_BUCKET/<app>/<date>.dump . \
+      #   --endpoint-url https://<acct>.r2.cloudflarestorage.com
+      #   then: pg_restore -d "$SCRATCH_DB_URL" --clean --if-exists backup.dump

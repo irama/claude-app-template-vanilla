@@ -44,7 +44,7 @@ project's first GitHub issue (or `.scratch/setup.md` pre-remote) and check items
 - [ ] All SQL under `data/supabase/` (template convention)
 - [ ] RLS enabled on every table from the first migration; RLS smoke test in CI or `/prod-ready`
 - [ ] PITR enabled (Supabase → Database → Backups) for any real user data
-- [ ] Nightly `pg_dump` GitHub Action → private repo/R2 (copy workflow from playbook § Backups)
+- [ ] Nightly `pg_dump` GitHub Action → **dedicated private R2 bucket** (ship `.github/workflows/db-backup.yml`; secrets: `PROD_DATABASE_URL`, `R2_*`, `BACKUP_R2_BUCKET`); set a bucket lifecycle rule. Never the media bucket. Client work → bucket in the client's own Cloudflare account (see playbook § Backups)
 - [ ] **Restore drill completed once** (dump → scratch project → app boots against it)
 - [ ] Migration application path documented in project CLAUDE.md (CLI-tracked vs direct `psql` over IPv4 pooler)
 
