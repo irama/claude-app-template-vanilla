@@ -1,4 +1,4 @@
-# Local gate before push: typecheck + lint + tests. CI no longer runs these
-# (Vercel's next build type-checks; this catches lint/test before they reach Vercel).
-# Non-mutating (eslint without --fix). Skip in a pinch: git push --no-verify
-npm run typecheck && npx eslint src && npx vitest run
+# Local gate + attestation before push (plan c). Runs the repo gate, then best-effort
+# reports the result to the status hub (fail-open — telemetry never blocks a push).
+# Skip in a pinch: git push --no-verify
+exec "$(git rev-parse --show-toplevel)/scripts/ci-gate.sh"
