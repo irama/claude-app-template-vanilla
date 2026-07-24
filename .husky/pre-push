@@ -1,0 +1,4 @@
+# Local gate before push: typecheck + lint + tests. CI no longer runs these
+# (Vercel's next build type-checks; this catches lint/test before they reach Vercel).
+# Non-mutating (eslint without --fix). Skip in a pinch: git push --no-verify
+npm run typecheck && npx eslint src && npx vitest run

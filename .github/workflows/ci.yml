@@ -1,10 +1,12 @@
 name: CI
 
 on:
-  push:
-    branches: [main, develop]
+  # No push trigger: the local husky pre-push hook runs typecheck + lint + tests
+  # before every push, so re-running them in the cloud on each push just burns
+  # metered Actions minutes (private repo). CI stays available on PRs and on demand.
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   quality:
