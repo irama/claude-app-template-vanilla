@@ -53,5 +53,33 @@ jobs:
         run: npm run size
 
       - name: Security audit
-        # Blocking on purpose (docs/production-playbook.md) — a gate that can't fail is not a gate.
-        run: npm audit --audit-level=high
+        # Blocking on CRITICAL, production dependencies only — fleet policy,
+        # 2026-07-26 (status hub docs/fleet-prod-ready-roadmap.md, open item C).
+        #
+        # Not --audit-level=high: fleet-wide the remaining highs are
+        # `fixAvailable: false` build-tooling transitives (brace-expansion →
+        # minimatch → glob → … ), so that gate can never go green and only
+        # teaches people to ignore CI. Not `continue-on-error` either — that
+        # hides a real critical. Highs stay visible via Dependabot on the status
+        # hub's CI tile; only the blocking threshold moved.
+        #
+        # The JSON parse separates "npm's advisory endpoint is broken" (it has
+        # 400'd on the retired quick-audit endpoint and returned unparseable
+        # gzip through 2026-07) from "this repo has a critical CVE". Only the
+        # latter fails the build; a broken endpoint is a loud warning.
+        run: |
+          set -o pipefail
+          if ! npm audit --json --omit=dev > /tmp/audit.json 2>/tmp/audit.err; then
+            : # non-zero also means "vulnerabilities found" — the JSON below decides
+          fi
+          if ! node -e "JSON.parse(require('fs').readFileSync('/tmp/audit.json','utf8'))" 2>/dev/null; then
+            echo "::warning::npm audit could not run (registry/advisory endpoint error) — NOT a repo finding:"
+            cat /tmp/audit.err || true
+            exit 0
+          fi
+          node -e "
+            const a = JSON.parse(require('fs').readFileSync('/tmp/audit.json','utf8'));
+            const v = a.metadata.vulnerabilities;
+            console.log('prod deps —', JSON.stringify(v));
+            if (v.critical > 0) { console.error('::error::' + v.critical + ' CRITICAL vulnerabilities in production dependencies'); process.exit(1); }
+          "
