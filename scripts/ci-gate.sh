@@ -57,11 +57,19 @@ if [ -n "${GATE_REPORT_SECRET:-}" ] && [ -n "$sha" ] && [ -n "$REPO" ]; then
   device="$(hostname -s 2>/dev/null || echo unknown)"
   ran_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   payload="{\"repo\":\"$REPO\",\"sha\":\"$sha\",\"branch\":\"$branch\",\"result\":\"$gate_result\",\"tree_clean\":$tree_clean,\"gate_version\":\"$GATE_VERSION\",\"device\":\"$device\",\"ran_at\":\"$ran_at\"}"
-  curl -fsS -m 3 -X POST "$HUB_URL" \
+  # Report WHY it failed. The bare `curl -f … >/dev/null 2>&1` swallowed the status, so a
+  # 404 "unknown repo" (the repo has no row in the hub registry — the common case for a
+  # newly-onboarded app) looked identical to the hub being down. Still fail-open.
+  resp="$(mktemp)"
+  code="$(curl -sS -m 3 -o "$resp" -w '%{http_code}' -X POST "$HUB_URL" \
     -H "authorization: Bearer $GATE_REPORT_SECRET" \
     -H "content-type: application/json" \
-    -d "$payload" >/dev/null 2>&1 \
-    || echo "ci-gate: attestation POST failed (non-blocking)" >&2
+    -d "$payload" 2>/dev/null || echo 000)"
+  case "$code" in
+    2??) ;;
+    *) echo "ci-gate: attestation POST failed (non-blocking) — HTTP $code $(tr -d '\n' <"$resp" | cut -c1-200)" >&2 ;;
+  esac
+  rm -f "$resp"
 fi
 
 # --- 4. decide ---
