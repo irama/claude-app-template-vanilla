@@ -50,8 +50,12 @@ if [ -z "$(git status --porcelain)" ]; then tree_clean="true"; else tree_clean="
 
 # --- 3. best-effort report (fail-open) ---
 if [ -f "$SECRET_FILE" ]; then
+  # `set -u` is on, and an unset expansion inside a sourced file kills the shell — which
+  # would make the REPORT block the push. Fail-open means fail-open (Codex review).
+  set +u
   # shellcheck disable=SC1090
   . "$SECRET_FILE"                                # defines GATE_REPORT_SECRET
+  set -u
 fi
 if [ -n "${GATE_REPORT_SECRET:-}" ] && [ -n "$sha" ] && [ -n "$REPO" ]; then
   device="$(hostname -s 2>/dev/null || echo unknown)"
@@ -61,13 +65,17 @@ if [ -n "${GATE_REPORT_SECRET:-}" ] && [ -n "$sha" ] && [ -n "$REPO" ]; then
   # 404 "unknown repo" (the repo has no row in the hub registry — the common case for a
   # newly-onboarded app) looked identical to the hub being down. Still fail-open.
   resp="$(mktemp)"
+  # curl still writes %{http_code} (000) when it cannot connect, so do NOT `|| echo 000` —
+  # that concatenates into "000000". Blank means curl produced nothing at all.
   code="$(curl -sS -m 3 -o "$resp" -w '%{http_code}' -X POST "$HUB_URL" \
     -H "authorization: Bearer $GATE_REPORT_SECRET" \
     -H "content-type: application/json" \
-    -d "$payload" 2>/dev/null || echo 000)"
-  case "$code" in
+    -d "$payload" 2>/dev/null)" || true
+  case "${code:-000}" in
     2??) ;;
-    *) echo "ci-gate: attestation POST failed (non-blocking) — HTTP $code $(tr -d '\n' <"$resp" | cut -c1-200)" >&2 ;;
+    # Printable characters only: the body is remote output landing on a terminal, so strip
+    # control/escape sequences before echoing it.
+    *) echo "ci-gate: attestation POST failed (non-blocking) — HTTP ${code:-000} $(tr -cd '[:print:]' <"$resp" | cut -c1-200)" >&2 ;;
   esac
   rm -f "$resp"
 fi
