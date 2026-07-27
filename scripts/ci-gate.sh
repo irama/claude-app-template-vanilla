@@ -83,7 +83,14 @@ if [ -n "${GATE_REPORT_SECRET:-}" ] && [ -n "$sha" ] && [ -n "$REPO" ]; then
     # the hub does not watch (templates, scratch repos, anything pre-onboarding). Calling that
     # "failed" trained everyone to ignore the line — and it is the exact message that got
     # recorded as a hub bug when it was working as designed. Say what it means instead.
-    404) echo "ci-gate: gate result not recorded — $REPO is not in the status-hub registry (expected for an unwatched repo; run /ingest-manifest there to add it)" >&2 ;;
+    # …but ONLY the hub's own "unknown repo" body. A stale GATE_REPORT_URL or a missing route
+    # also 404s, and calling that "expected" would hide a real telemetry outage behind advice to
+    # run /ingest-manifest (Codex review 2026-07-28).
+    404) if grep -q 'unknown repo' "$resp" 2>/dev/null; then
+           echo "ci-gate: gate result not recorded — $REPO is not in the status-hub registry (expected for an unwatched repo; run /ingest-manifest there to add it)" >&2
+         else
+           echo "ci-gate: attestation POST failed (non-blocking) — HTTP 404 from $HUB_URL, which is not the hub's unknown-repo answer: $(tr -cd '[:print:]' <"$resp" | cut -c1-200)" >&2
+         fi ;;
     *) echo "ci-gate: attestation POST failed (non-blocking) — HTTP ${code:-000} $(tr -cd '[:print:]' <"$resp" | cut -c1-200)" >&2 ;;
   esac
   rm -f "$resp"
