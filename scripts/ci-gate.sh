@@ -60,7 +60,11 @@ fi
 if [ -n "${GATE_REPORT_SECRET:-}" ] && [ -n "$sha" ] && [ -n "$REPO" ]; then
   device="$(hostname -s 2>/dev/null || echo unknown)"
   ran_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  payload="{\"repo\":\"$REPO\",\"sha\":\"$sha\",\"branch\":\"$branch\",\"result\":\"$gate_result\",\"tree_clean\":$tree_clean,\"gate_version\":\"$GATE_VERSION\",\"device\":\"$device\",\"ran_at\":\"$ran_at\"}"
+  # A double quote is a legal character in a git branch name, and interpolating one straight
+  # into the payload produced invalid JSON — the hub 400'd and the attestation was silently
+  # lost (Codex review). Backslash, the other JSON escape, is already forbidden in a ref name.
+  json_escape() { local s=${1//\\/\\\\}; printf '%s' "${s//\"/\\\"}"; }
+  payload="{\"repo\":\"$(json_escape "$REPO")\",\"sha\":\"$sha\",\"branch\":\"$(json_escape "$branch")\",\"result\":\"$gate_result\",\"tree_clean\":$tree_clean,\"gate_version\":\"$GATE_VERSION\",\"device\":\"$(json_escape "$device")\",\"ran_at\":\"$ran_at\"}"
   # Report WHY it failed. The bare `curl -f … >/dev/null 2>&1` swallowed the status, so a
   # 404 "unknown repo" (the repo has no row in the hub registry — the common case for a
   # newly-onboarded app) looked identical to the hub being down. Still fail-open.
