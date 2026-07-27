@@ -79,6 +79,11 @@ if [ -n "${GATE_REPORT_SECRET:-}" ] && [ -n "$sha" ] && [ -n "$REPO" ]; then
     2??) ;;
     # Printable characters only: the body is remote output landing on a terminal, so strip
     # control/escape sequences before echoing it.
+    # 404 = this repo has no row in the hub registry, which is the CORRECT answer for a repo
+    # the hub does not watch (templates, scratch repos, anything pre-onboarding). Calling that
+    # "failed" trained everyone to ignore the line — and it is the exact message that got
+    # recorded as a hub bug when it was working as designed. Say what it means instead.
+    404) echo "ci-gate: gate result not recorded — $REPO is not in the status-hub registry (expected for an unwatched repo; run /ingest-manifest there to add it)" >&2 ;;
     *) echo "ci-gate: attestation POST failed (non-blocking) — HTTP ${code:-000} $(tr -cd '[:print:]' <"$resp" | cut -c1-200)" >&2 ;;
   esac
   rm -f "$resp"
