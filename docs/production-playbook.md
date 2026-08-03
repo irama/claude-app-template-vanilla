@@ -41,7 +41,7 @@ Run the full [client-setup-checklist.md](client-setup-checklist.md). Non-negotia
 - **Migrations**: the global migration-lint hook flags `SECURITY DEFINER` without `auth.uid()` guards and missing `REVOKE FROM PUBLIC`. Don't bypass it — fix the SQL. Every `CREATE OR REPLACE FUNCTION` must re-state its guards (replace = full overwrite, prior guards are gone). (class 1)
 - **Cleanup cancels work**: any delete/abort path for a background job must cancel the in-flight chain (trigger.dev/n8n/queue), not just delete the row. Retry caps must live somewhere that survives the deletion. (class 6)
 - **Mobile + PWA are build-time, not fix-passes**: 375px check per UI gate; icons/manifest via `/app-icons` skill before launch, not after. (class 8)
-- **Never `npm run build` then `next dev` in the same worktree** without clearing `.next`; one dev server per worktree via `/localhost`. (class 7)
+- **Never `pnpm run build` then `next dev` in the same worktree** without clearing `.next`; one dev server per worktree via `/localhost`. (class 7)
 
 ### Stage 2 — Pre-launch gate
 
@@ -79,7 +79,7 @@ and a `books`-style multi-track audit for money/calculation logic.
 
 When any step needs the user to click through a service dashboard (Sentry, Supabase, Vercel, GitHub), give **step-by-step instructions with direct deep links every time** — construct the URL from the service's known pattern rather than describing menus. Verified patterns:
 
-- **Sentry DSN**: `https://<org>.sentry.io/settings/projects/<project>/keys/` (e.g. `https://peak-state.sentry.io/settings/projects/nav-peakstate-global/keys/`). Menu paths are unreliable — link straight to the keys page. Wizard note: `npx @sentry/wizard` hardcodes the DSN in its config files and adds a `.env.sentry-build-plugin` token file — prefer env-driven DSN (`NEXT_PUBLIC_SENTRY_DSN`) and put `SENTRY_AUTH_TOKEN` in Vercel for source maps.
+- **Sentry DSN**: `https://<org>.sentry.io/settings/projects/<project>/keys/` (e.g. `https://peak-state.sentry.io/settings/projects/nav-peakstate-global/keys/`). Menu paths are unreliable — link straight to the keys page. Wizard note: `pnpm dlx @sentry/wizard` hardcodes the DSN in its config files and adds a `.env.sentry-build-plugin` token file — prefer env-driven DSN (`NEXT_PUBLIC_SENTRY_DSN`) and put `SENTRY_AUTH_TOKEN` in Vercel for source maps.
 - **Vercel env vars**: `https://vercel.com/<team>/<project>/settings/environment-variables`
 - **Supabase backups/PITR**: `https://supabase.com/dashboard/project/<ref>/database/backups`
 - **GitHub Actions secrets**: `https://github.com/<owner>/<repo>/settings/secrets/actions`

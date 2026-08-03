@@ -1,5 +1,7 @@
 version: 2
 updates:
+  # "npm" is Dependabot's name for the whole JS ecosystem — it reads pnpm-lock.yaml too.
+  # There is no "pnpm" value; do not "fix" this to one.
   - package-ecosystem: "npm"
     directory: "/"
     schedule:

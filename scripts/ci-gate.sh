@@ -39,11 +39,13 @@ done
 
 # --- 2. gate (secret NOT in env) — stdin redirected so tools don't swallow the ref list ---
 # The NON-MUTATING triad (eslint without --fix): a pre-push hook must never rewrite files
-# mid-push. `npm run <script>` + npx resolve from node_modules regardless of the package
-# manager, so this line is portable as-is. A repo whose scripts/lint-paths differ is caught
-# at rollout (Phase 3b), not papered over by auto-detecting a `check` script that may --fix.
+# mid-push. A repo whose scripts/lint-paths differ is caught at rollout (Phase 3b), not
+# papered over by auto-detecting a `check` script that may --fix.
+# This repo is on pnpm: `pnpm exec` replaces `npx` (npx would resolve against npm's flat
+# node_modules, which pnpm's symlinked tree does not provide). GATE_VERSION is NOT bumped —
+# the command SET (typecheck + lint + tests) is unchanged, only the runner.
 gate_result="pass"
-if ! (npm run typecheck && npx eslint src && npx vitest run) </dev/null; then
+if ! (pnpm run typecheck && pnpm exec eslint src && pnpm exec vitest run) </dev/null; then
   gate_result="fail"
 fi
 if [ -z "$(git status --porcelain)" ]; then tree_clean="true"; else tree_clean="false"; fi

@@ -93,7 +93,7 @@ it('is disabled when isLoading', () => {
 ## Running tests
 
 ```bash
-npm test           # watch mode
-npm run test:run   # single pass (CI / pre-commit)
-npm run coverage   # coverage report
+pnpm test               # watch mode
+pnpm exec vitest run    # single pass (CI / pre-push gate)
+pnpm run test:coverage  # coverage report
 ```

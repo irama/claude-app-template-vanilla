@@ -3,8 +3,9 @@
   "BASH_MAX_OUTPUT_LENGTH": "150000",
   "permissions": {
     "allow": [
-      "Bash(npm run *)",
-      "Bash(npx *)",
+      "Bash(pnpm run *)",
+      "Bash(pnpm exec *)",
+      "Bash(pnpm dlx *)",
       "Bash(git add *)",
       "Bash(git commit *)",
       "Bash(git status)",
@@ -32,7 +33,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "FILE=\"$CLAUDE_TOOL_INPUT_FILE_PATH\"; if [[ \"$FILE\" == *.ts || \"$FILE\" == *.tsx || \"$FILE\" == *.js || \"$FILE\" == *.jsx ]]; then cd \"$(dirname \"$FILE\")\" && npx prettier --write \"$FILE\" 2>/dev/null || true; fi"
+            "command": "FILE=\"$CLAUDE_TOOL_INPUT_FILE_PATH\"; if [[ \"$FILE\" == *.ts || \"$FILE\" == *.tsx || \"$FILE\" == *.js || \"$FILE\" == *.jsx ]]; then cd \"$(dirname \"$FILE\")\" && pnpm exec prettier --write \"$FILE\" 2>/dev/null || true; fi"
           }
         ]
       }

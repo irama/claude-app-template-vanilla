@@ -2,6 +2,10 @@
   "name": "claude-app-template",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@11.1.2",
+  "engines": {
+    "node": ">=22.13.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -12,7 +16,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --fix",
     "format": "prettier --write src",
-    "check": "npm run typecheck && npm run lint && npm run test run",
+    "check": "pnpm run typecheck && pnpm run lint && pnpm run test run",
     "prepare": "husky",
     "size": "node scripts/first-load-size.mjs"
   },

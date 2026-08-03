@@ -108,9 +108,9 @@ Read [`docs/agents.md`](docs/agents.md) for the full list of available subagents
 You have permission to — no need to ask:
 
 - Read, write, and delete any file in this project directory
-- Run npm scripts (`dev`, `build`, `test`, `lint`, `typecheck`, `check`)
+- Run pnpm scripts (`dev`, `build`, `test`, `lint`, `typecheck`, `check`)
 - Run git commands (`add`, `commit`, `status`, `log`, `diff`, `branch`, `checkout`)
-- Install npm packages
+- Install packages with pnpm
 - Create and modify configuration files
 
 Do NOT:
