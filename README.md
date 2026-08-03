@@ -9,10 +9,10 @@ Next.js 15 (App Router) · TypeScript (strict) · Tailwind CSS · Vitest + Testi
 ## Start a new project from this template
 
 1. Clone or "Use this template", then update `CLAUDE.md` (app name, one-liner, database choice) and fill in `PROJECT_SPEC.md` — the source of truth for features, data models, and scope. Delete the template note at the top of `CLAUDE.md`.
-2. `npm install`, then `npm run dev`.
+2. `pnpm install`, then `pnpm run dev`. (This repo is on **pnpm** — `packageManager` in `package.json` pins the version, so `corepack enable` once and the right pnpm is used automatically. Do not use npm or yarn here.)
 3. (Optional) apply a stack option — see below.
 
-`npm run check` runs the full gate: `typecheck` + `lint` + `test`.
+`pnpm run check` runs the full gate: `typecheck` + `lint` + `test`.
 
 ## How Claude is guided (progressive disclosure)
 

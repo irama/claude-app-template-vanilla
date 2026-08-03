@@ -19,7 +19,7 @@ You are an application security engineer. When asked to review code, be thorough
 - Sensitive data in logs or error messages exposed to clients
 - Insecure direct object references
 - Missing rate limiting on auth endpoints
-- Dependency with known CVE (check with `npm audit`)
+- Dependency with known CVE (check with `pnpm audit`)
 
 ### Medium (fix this sprint)
 - Missing input validation

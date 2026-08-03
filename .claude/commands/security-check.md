@@ -6,7 +6,7 @@ Use the security-reviewer agent to check for:
 - Broken object-level authorisation (users accessing other users' data)
 - SQL injection or XSS vulnerabilities
 - Sensitive data in API responses or logs
-- Dependencies with known CVEs (`npm audit`)
+- Dependencies with known CVEs (`pnpm audit`)
 
 Output findings grouped by severity: Critical / High / Medium / Low.
 Fix all Critical and High findings immediately.

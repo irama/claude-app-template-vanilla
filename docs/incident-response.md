@@ -44,7 +44,7 @@ Cancel in-flight runs at the platform (trigger.dev dashboard / n8n executions), 
 - Sentry issue → stack + release SHA → `git log <sha>` for the offending commit.
 - Vercel logs are retained ~1h on hobby/short on pro — Sentry (and any stage-events table) is the durable record.
 - Admin error JSON (copy button) from the affected user pastes straight into a Claude thread.
-- Prod-only + build-green? Suspect `'use server'` export shapes, deploy skew, middleware matchers — reproduce with `npm run build && npm start`, not `next dev`.
+- Prod-only + build-green? Suspect `'use server'` export shapes, deploy skew, middleware matchers — reproduce with `pnpm run build && pnpm start`, not `next dev`.
 
 ## 3. Document
 

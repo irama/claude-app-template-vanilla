@@ -12,7 +12,7 @@ Source analysis: July 2026 cross-project failure sweep (see [production-playbook
 - ☑ `/api/health` route with commit SHA
 - ☑ `<ErrorDetail>` admin error component (full JSON + copy button)
 - ☑ `src/lib/http.ts` — `fetchWithTimeout` / `withRetry` for all third-party calls
-- ☑ CI `npm audit` blocking (was `continue-on-error`)
+- ☑ CI `pnpm audit` blocking (was `continue-on-error`)
 - ☑ Secret-scan hook blocking (was warn-only)
 - ☑ Global `/prod-ready` skill (pre-launch gauntlet)
 - ☑ Global migration-lint hook (SECURITY DEFINER / RLS-guard checks at write time)
