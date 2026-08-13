@@ -67,7 +67,7 @@ function waitForCall(statement) {
   return name === 'waitFor' ? call : null;
 }
 
-export default {
+const rule = {
   meta: {
     type: 'problem',
     docs: {
@@ -105,3 +105,7 @@ export default {
     };
   },
 };
+
+// Named, not an anonymous default: `import/no-anonymous-default-export` warns
+// on the latter, and this file is vendored into repos that treat lint as a gate.
+export default rule;
