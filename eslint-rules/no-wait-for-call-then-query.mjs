@@ -34,18 +34,65 @@
  */
 
 const SYNC_QUERY = /^(getBy|getAllBy|queryBy|queryAllBy)/;
+/** Queries that THROW when absent. A `queryBy*` on the next line is normally a
+ *  negative assertion ("nothing appeared"), which has no element to wait for —
+ *  waiting on the call is then the only barrier available, so it is left alone. */
+const THROWING_QUERY = /^(getBy|getAllBy)/;
+/**
+ * Matchers that only make sense against a DOM node. If the waitFor uses one, it
+ * IS waiting on the DOM — through an element handle (`expect(header).toHaveClass`)
+ * or a one-line query helper (`const chord = () => screen.queryByText('Ctrl⏎')`)
+ * that this rule cannot see through. Those barriers are correct; flagging them
+ * would push people to rewrite working tests.
+ */
+const DOM_MATCHERS = new Set([
+  'toBeInTheDocument',
+  'toBeVisible',
+  'toHaveAttribute',
+  'toHaveTextContent',
+  'toHaveValue',
+  'toHaveClass',
+  'toHaveFocus',
+  'toBeDisabled',
+  'toBeEnabled',
+  'toBeChecked',
+  'toHaveStyle',
+  'toContainElement',
+]);
+
+/** Does this subtree use a matcher that only applies to a DOM node? */
+function assertsOnTheDom(node, sourceCode) {
+  let found = false;
+  const visit = (n) => {
+    if (found || !n || typeof n.type !== 'string') return;
+    if (
+      n.type === 'MemberExpression' &&
+      n.property?.type === 'Identifier' &&
+      DOM_MATCHERS.has(n.property.name)
+    ) {
+      found = true;
+    }
+    for (const key of sourceCode.visitorKeys[n.type] ?? []) {
+      const child = n[key];
+      if (Array.isArray(child)) child.forEach(visit);
+      else if (child && typeof child.type === 'string') visit(child);
+    }
+  };
+  visit(node);
+  return found;
+}
 
 /** Does this subtree contain a `screen.<query>()` / bare `getBy…()` call? */
-function queriesTheDom(node, sourceCode) {
+function queriesTheDom(node, sourceCode, pattern = SYNC_QUERY) {
   let found = false;
   const visit = (n) => {
     if (found || !n || typeof n.type !== 'string') return;
     if (n.type === 'CallExpression') {
       const callee = n.callee;
       if (callee?.type === 'MemberExpression' && callee.property?.type === 'Identifier') {
-        if (SYNC_QUERY.test(callee.property.name)) found = true;
+        if (pattern.test(callee.property.name)) found = true;
       }
-      if (callee?.type === 'Identifier' && SYNC_QUERY.test(callee.name)) found = true;
+      if (callee?.type === 'Identifier' && pattern.test(callee.name)) found = true;
     }
     for (const key of sourceCode.visitorKeys[n.type] ?? []) {
       const child = n[key];
@@ -91,9 +138,19 @@ const rule = {
         // A waitFor that already queries the DOM is the correct shape (and
         // prefer-find-by will nudge it further). Only the non-DOM barrier races.
         if (queriesTheDom(call, sourceCode)) return;
+        // …and neither is a wait on an element handle or a query helper, both of
+        // which show up as a DOM matcher inside the callback.
+        if (assertsOnTheDom(call, sourceCode)) return;
 
         const next = statements[i + 1];
-        if (!next || !queriesTheDom(next, sourceCode)) return;
+        // Only a THROWING query races. A queryBy* is a negative assertion with
+        // nothing to await.
+        if (!next || !queriesTheDom(next, sourceCode, THROWING_QUERY)) return;
+        // If the next statement is ITSELF an awaited waitFor, the real barrier is
+        // right there and the query inside it retries — this waitFor is merely
+        // redundant, not racy. (Common shape: wait for the call, then wait for
+        // what it rendered.)
+        if (waitForCall(next)) return;
 
         context.report({ node: statement, messageId: 'raceyBarrier' });
       });
