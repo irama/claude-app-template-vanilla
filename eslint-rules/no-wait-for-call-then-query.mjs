@@ -45,6 +45,21 @@ const THROWING_QUERY = /^(getBy|getAllBy)/;
  * that this rule cannot see through. Those barriers are correct; flagging them
  * would push people to rewrite working tests.
  */
+/**
+ * Properties that only exist on a DOM node. Reading one inside the barrier —
+ * `expect(header.className).toContain('z-[70]')` — makes it a DOM wait just as
+ * much as a matcher does, whatever assertion follows. Dropped once by accident
+ * on 2026-08-14 while two threads edited this file; zero.peakstate.global's
+ * header tests depend on it, which is why the suite now pins it.
+ */
+const DOM_PROPERTIES = new Set([
+  'className',
+  'textContent',
+  'innerHTML',
+  'checked',
+  'selectionStart',
+  'getAttribute',
+]);
 const DOM_MATCHERS = new Set([
   'toBeInTheDocument',
   'toBeVisible',
@@ -68,7 +83,7 @@ function assertsOnTheDom(node, sourceCode) {
     if (
       n.type === 'MemberExpression' &&
       n.property?.type === 'Identifier' &&
-      DOM_MATCHERS.has(n.property.name)
+      (DOM_MATCHERS.has(n.property.name) || DOM_PROPERTIES.has(n.property.name))
     ) {
       found = true;
     }
