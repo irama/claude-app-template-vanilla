@@ -33,11 +33,23 @@
  * that script.
  */
 
-const SYNC_QUERY = /^(getBy|getAllBy|queryBy|queryAllBy)/;
+/**
+ * Testing Library's eight query suffixes, spelt out and anchored. A prefix test
+ * alone (`/^getBy/`) also matches `repository.getById(…)` — "getBy" + "Id" — and
+ * an error-level rule then blocks a build over a repository call, recommending
+ * `findBy` at something that has no DOM (found by review, 2026-08-14, before this
+ * rule reached a repo that had one).
+ *
+ * A repo with a CUSTOM query (`getByDataCy`) drops out of the rule's sight here.
+ * That is the deliberate trade: a missed racy barrier is one flaky test, an error
+ * on a non-DOM call is a blocked build in every repo that vendors this.
+ */
+const TL_SUFFIX = '(Role|Text|TestId|LabelText|PlaceholderText|AltText|Title|DisplayValue)';
+const SYNC_QUERY = new RegExp(`^(get|query)(All)?By${TL_SUFFIX}$`);
 /** Queries that THROW when absent. A `queryBy*` on the next line is normally a
  *  negative assertion ("nothing appeared"), which has no element to wait for —
  *  waiting on the call is then the only barrier available, so it is left alone. */
-const THROWING_QUERY = /^(getBy|getAllBy)/;
+const THROWING_QUERY = new RegExp(`^get(All)?By${TL_SUFFIX}$`);
 /**
  * Matchers that only make sense against a DOM node. If the waitFor uses one, it
  * IS waiting on the DOM — through an element handle (`expect(header).toHaveClass`)
