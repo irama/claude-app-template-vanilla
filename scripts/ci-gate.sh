@@ -76,8 +76,28 @@ fi
 # for real without pushing something. CI_GATE_DRY_RUN stops here and prints the decision, so
 # scripts/ci-gate.test.sh can drive every ref shape (deletion-only, mixed, detached HEAD,
 # dirty tree, no ref list) in a throwaway repo without running a gate or touching the hub.
+# --- 1a2. a free port for any visual suite (fleet-wide; inert where there is none) ---
+# A Playwright config binds ONE fixed port and, locally, reuses whatever already answers it.
+# Several threads gate at once across this fleet, so the collision case is not "port busy,
+# fail" — it is "screenshot ANOTHER APP and call it a pass". Only a pre-flight probe stands
+# between that and a false green, and not every suite has one. So hand the suite a port that
+# is actually free. A repo whose config does not read VISUAL_PORT simply ignores this.
+# GATE_VERSION is NOT bumped: the command SET is unchanged, this only picks a port for it.
+if [ -z "${VISUAL_PORT:-}" ] && command -v lsof >/dev/null 2>&1; then
+  candidate=3010
+  while [ "$candidate" -le 3030 ]; do
+    if ! lsof -ti:"$candidate" >/dev/null 2>&1; then
+      export VISUAL_PORT="$candidate"
+      break
+    fi
+    candidate=$((candidate + 1))
+  done
+  # Nothing free in the range: leave it unset and let the config's own default stand. The
+  # suite's pre-flight is then the backstop, exactly as it was before this block existed.
+fi
+
 if [ -n "${CI_GATE_DRY_RUN:-}" ]; then
-  echo "sha=$sha branch=$branch attest=$attest tree_clean=$tree_clean"
+  echo "sha=$sha branch=$branch attest=$attest tree_clean=$tree_clean visual_port=${VISUAL_PORT:-unset}"
   exit 0
 fi
 
@@ -102,6 +122,25 @@ fi
 if [ -f "$gate_root/scripts/sync-safe-ip.mjs" ]; then
   node "$gate_root/scripts/sync-safe-ip.mjs" --check </dev/null \
     || echo "  ^ safe-ip: siblings are behind the canonical copy — run: node scripts/sync-safe-ip.mjs"
+fi
+
+# --- 1c0. ci-gate fan-out guard (hub only, instant) ---
+# This script reaches the other repos by hand-copy, and nothing used to check the copies kept
+# up — a fix made here could sit unnoticed in 14 repos. WARNS rather than blocks: a sibling's
+# stale copy is not a reason to refuse THIS push.
+if [ -f "$gate_root/scripts/sync-ci-gate.mjs" ]; then
+  node "$gate_root/scripts/sync-ci-gate.mjs" --check </dev/null \
+    || echo "  ^ ci-gate: siblings are behind the canonical copy — see docs/ci-gate-rollout.md"
+fi
+
+# --- 1c1. eslint-rules fan-out guard (hub only, instant) ---
+# Same arrangement as safe-ip above: the canonical custom ESLint rules live here and are
+# vendored into the fleet repos that have switched them on. Copying the file does not enable
+# the rule — each repo's eslint.config.mjs imports it explicitly — so this only guards the
+# copies from drifting behind a fix made here. WARNS rather than blocks, for the same reason.
+if [ -f "$gate_root/scripts/sync-eslint-rules.mjs" ]; then
+  node "$gate_root/scripts/sync-eslint-rules.mjs" --check </dev/null \
+    || echo "  ^ eslint-rules: siblings are behind the canonical copy — run: node scripts/sync-eslint-rules.mjs"
 fi
 
 # --- 1c2. this script's own ref-parsing tests (canonical checkout only, ~1s) ---
