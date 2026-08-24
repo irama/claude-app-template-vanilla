@@ -19,7 +19,7 @@
 # The hub reads GitHub's real main HEAD + Vercel's deployed SHA as the other two facts.
 set -uo pipefail
 
-GATE_VERSION="5"
+GATE_VERSION="6"
 HUB_URL="${GATE_REPORT_URL:-https://status.peakstate.global/api/gate-report}"
 SECRET_FILE="${GATE_REPORT_ENV:-$HOME/.config/peakstate/gate-report.env}"
 
@@ -200,17 +200,35 @@ fi
 # mid-push. THIS repo is pnpm, so its copy uses pnpm — per docs/ci-gate-rollout.md step 3, the
 # gate line is the one line each repo adjusts to its own package manager / script names, and the
 # fleet's copies are deliberately not byte-identical. npm repos keep `npm run … && npx …`.
-# GATE_VERSION is NOT bumped: the command SET (typecheck + lint + tests) is unchanged.
+# GATE_VERSION 6: the command set gained the stale-deps check below.
+#
+# Output is tee'd rather than captured so the pusher still watches the run live; `pipefail`
+# (set at the top) makes the pipeline carry the subshell's exit status, not tee's. Promoted
+# from hoomans-hackerman, which worked this out first and carried it alone.
 gate_result="pass"
-if ! (pnpm run typecheck && pnpm exec eslint src && pnpm exec vitest run) </dev/null; then
+gate_log="$(mktemp)"
+if ! { (pnpm run typecheck && pnpm exec eslint src && pnpm exec vitest run) </dev/null 2>&1 | tee "$gate_log"; }; then
   gate_result="fail"
 fi
+# `verifyDepsBeforeRun: error` makes `pnpm exec` refuse to run AT ALL when node_modules is out
+# of sync with the lockfile — the routine case in a fresh worktree, or straight after a branch
+# switch that moved pnpm-lock.yaml. Blocking the push there is correct, but reporting "fail" is
+# a lie: no check ran, so nothing failed. The hub's contract is "the gate passed/failed for SHA
+# x", and a stale-deps abort is neither. The hub's schema only accepts pass|fail, so this
+# third state SKIPS the attestation entirely rather than inventing a value the API would 400 on.
+if grep -q 'ERR_PNPM_VERIFY_DEPS_BEFORE_RUN' "$gate_log" 2>/dev/null; then
+  gate_result="notrun"
+  echo "ci-gate: dependencies are out of sync with pnpm-lock.yaml — no check ran, so nothing was reported to the hub. Run \`pnpm install\` and push again." >&2
+fi
+rm -f "$gate_log"
 # tree_clean is measured in step 1, BEFORE the gate — a gate that dirties the tree must not
 # be able to describe the tree it dirtied as the one it tested.
 
 # --- 3. best-effort report (fail-open) ---
-if [ "$attest" = "0" ]; then
+if [ "$attest" = "0" ] || [ "$gate_result" = "notrun" ]; then
   # Deliberately silent about the secret: nothing was claimed, so there is nothing to send.
+  # `notrun` lands here too — a stale-deps abort still blocks the push (the exit below is
+  # non-zero) but must never reach the hub as a verdict about this commit.
   [ "$gate_result" = "pass" ]
   exit $?
 fi
