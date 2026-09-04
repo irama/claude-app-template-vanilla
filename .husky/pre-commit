@@ -1,1 +1,3 @@
+# Nothing unpublishable leaves this repo. It is public.
+python3 "$(git rev-parse --show-toplevel)/scripts/check-no-leaks.py" || exit 1
 pnpm exec lint-staged

@@ -57,3 +57,6 @@ WIP-LOCAL/
 # claude multi-thread worktrees + local multi-root workspace file
 .claude/worktrees/
 claude-app-template-vanilla.code-workspace
+
+# Private domain and name list for the publishability guard, never published
+.leakrc
