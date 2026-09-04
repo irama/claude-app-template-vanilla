@@ -60,7 +60,7 @@ jobs:
 
       - name: Security audit
         # Blocking on CRITICAL, production dependencies only — fleet policy,
-        # 2026-07-26 (status hub docs/fleet-prod-ready-roadmap.md, open item C).
+        # 2026-07-26 (tracked on the fleet roadmap, open item C).
         #
         # Not --audit-level=high: fleet-wide the remaining highs are
         # `fixAvailable: false` build-tooling transitives (brace-expansion →

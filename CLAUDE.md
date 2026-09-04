@@ -67,7 +67,7 @@ Read [`docs/testing-workflow.md`](docs/testing-workflow.md) for when to write te
 
 Read [`docs/production-playbook.md`](docs/production-playbook.md) — the manual run on **every** project (8 post-launch failure classes + lifecycle stages). Companions: [`docs/client-setup-checklist.md`](docs/client-setup-checklist.md) (tick-box project/client setup), [`docs/incident-response.md`](docs/incident-response.md) (prod rollback runbook), [`docs/robustness-roadmap.md`](docs/robustness-roadmap.md) (fleet improvements over time).
 
-**Key triggers:** new project → run the setup checklist; before launch → `/prod-ready`; prod incident → incident runbook, then postmortem in `docs/gotchas.md`. Third-party calls go through `src/lib/http.ts`; admin-facing error detail via `src/components/error-detail.tsx`.
+**Key triggers:** new project → run the setup checklist; before launch → the pre-launch gauntlet; prod incident → incident runbook, then postmortem in `docs/gotchas.md`. Third-party calls go through `src/lib/http.ts`; admin-facing error detail via `src/components/error-detail.tsx`.
 
 ## Planning Workflow (Matt Pocock skills)
 

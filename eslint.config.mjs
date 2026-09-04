@@ -15,7 +15,7 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    // The vendored rule from status.peakstate.global/packages/eslint-rules.
+    // The vendored rule from the fleet standard's packages/eslint-rules.
     // Bans `await waitFor(<a call>)` followed by a synchronous screen query —
     // a barrier that passes or fails on tick timing and flakes under load.
     files: ['**/*.test.ts', '**/*.test.tsx', 'src/test/**/*.{ts,tsx}'],

@@ -1,8 +1,8 @@
 // GENERATED FILE — DO NOT EDIT.
-// Source: status.peakstate.global/packages/eslint-rules/no-wait-for-call-then-query.mjs
+// Source: the fleet standard's packages/eslint-rules/no-wait-for-call-then-query.mjs
 // Update there, then run: node scripts/sync-eslint-rules.mjs
 /**
- * Ban the barrier that produced two separate flaky tests in mindful-app, and
+ * Ban the barrier that produced two separate flaky tests in one app, and
  * that a fleet-wide scan found ~100 more instances of (2026-08-13):
  *
  *     await waitFor(() => expect(someMock).toHaveBeenCalled());
@@ -28,7 +28,7 @@
  * "somewhere later in the test" would need flow analysis and would start
  * guessing; two real defects had this exact adjacent shape.
  *
- * The canonical copy lives in status.peakstate.global/packages/eslint-rules and
+ * The canonical copy lives in the fleet standard's packages/eslint-rules and
  * is vendored out by scripts/sync-eslint-rules.mjs — edit it there, then run
  * that script.
  */
@@ -61,8 +61,8 @@ const THROWING_QUERY = new RegExp(`^get(All)?By${TL_SUFFIX}$`);
  * Properties that only exist on a DOM node. Reading one inside the barrier —
  * `expect(header.className).toContain('z-[70]')` — makes it a DOM wait just as
  * much as a matcher does, whatever assertion follows. Dropped once by accident
- * on 2026-08-14 while two threads edited this file; zero.peakstate.global's
- * header tests depend on it, which is why the suite now pins it.
+ * on 2026-08-14 while two threads edited this file; another app's header tests
+ * depend on it, which is why the suite now pins it.
  */
 const DOM_PROPERTIES = new Set([
   'className',

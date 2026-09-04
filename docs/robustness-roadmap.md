@@ -14,18 +14,18 @@ Source analysis: July 2026 cross-project failure sweep (see [production-playbook
 - ☑ `src/lib/http.ts` — `fetchWithTimeout` / `withRetry` for all third-party calls
 - ☑ CI `pnpm audit` blocking (was `continue-on-error`)
 - ☑ Secret-scan hook blocking (was warn-only)
-- ☑ Global `/prod-ready` skill (pre-launch gauntlet)
+- ☑ Global pre-launch gauntlet
 - ☑ Global migration-lint hook (SECURITY DEFINER / RLS-guard checks at write time)
 
 ## Phase 2 — Per-project adoption (each existing live app)
 
-For each of: nav, wealth, books, zero, prima, space, spark, publish, monarch-2, morpho —
+For each app in the estate —
 
 - ☐ Backport error boundaries + `/api/health` + Sentry from template
-- ☐ Run `/prod-ready`; fix findings (expect RLS + drift findings on Supabase apps)
+- ☐ Run the pre-launch gauntlet; fix findings (expect RLS + drift findings on Supabase apps)
 - ☐ Enable PITR + nightly `pg_dump` GH Action; do one restore drill
 - ☐ External uptime monitor on `/api/health`
-- ☐ Create `docs/gotchas.md` if missing (nav's is the model)
+- ☐ Create `docs/gotchas.md` if missing
 - ☐ Route external API calls through a timeout/retry wrapper
 
 ## Phase 3 — Fleet tooling (build once, serves all clients)
@@ -35,7 +35,7 @@ For each of: nav, wealth, books, zero, prima, space, spark, publish, monarch-2, 
 - ☐ **Contract snapshot tests** — committed fixtures + weekly scheduled re-fetch + shape diff for each third-party API (Gmail, Drive, n8n, …)
 - ☐ **Spend tripwires** — daily API/LLM/DB spend vs 7-day baseline per app; >3× → alert
 - ☐ **`/new-client-app` skill** — template clone + git identity + Sentry + health + uptime + backup workflow, checklist pre-filled
-- ☐ **`/gotchas` skill** — post-incident: append postmortem entry; `/prod-ready` reads all sibling gotchas so every app inherits every lesson
+- ☐ **a post-incident gotchas log** — post-incident: append postmortem entry; the pre-launch gauntlet reads all sibling gotchas so every app inherits every lesson
 - ☐ **`/load-check` skill** — static scan for unbounded queries, per-item awaits in loops, JSONB full-column selects; 10×/100× blowup estimate
 
 ## Phase 4 — Client-business layer
@@ -44,7 +44,7 @@ For each of: nav, wealth, books, zero, prima, space, spark, publish, monarch-2, 
 - ☐ Hybrid Sentry decision: our org with per-client projects vs client-owned (pick once, document)
 - ☐ Ops retainer template for Model B hosting (SLA, backup, incident commitments)
 - ☐ Status page for Model B clients
-- ☐ Quarterly audit cadence as scheduled cloud agents (`/schedule`): `/prod-ready` + restore drill + money-math audit where applicable
+- ☐ Quarterly audit cadence as scheduled cloud agents (scheduled agents): the pre-launch gauntlet + restore drill + money-math audit where applicable
 
 ## Review cadence
 

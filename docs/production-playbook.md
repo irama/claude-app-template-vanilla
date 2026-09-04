@@ -1,8 +1,7 @@
 # Production Playbook
 
 The manual we run for **every** project, from first commit to steady-state operation.
-Derived from a July 2026 cross-project failure analysis of 20+ launched apps
-(nav, wealth, books, zero, prima, space, spark, astrolabe, MARIPOSA, hoomans-hackerman, …).
+Derived from a July 2026 failure analysis across 20+ launched apps.
 Companion docs: [client-setup-checklist.md](client-setup-checklist.md) (tick-box setup),
 [incident-response.md](incident-response.md) (when things break),
 [robustness-roadmap.md](robustness-roadmap.md) (improvements over time).
@@ -13,13 +12,13 @@ Evidence-ranked. Every defense in this playbook maps to one of these.
 
 | #   | Class                                                                                                                                                                                                  | Canonical incident                                                          |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
-| 1   | **Silent security/schema drift** — RLS policies & `SECURITY DEFINER` RPCs lose `auth.uid()` guards on later `CREATE OR REPLACE`; prod schema diverges from migration files while CLI says "up to date" | books: 14 RPCs callable with anon key; wealth: tenant isolation was a no-op |
+| 1   | **Silent security/schema drift** — RLS policies & `SECURITY DEFINER` RPCs lose `auth.uid()` guards on later `CREATE OR REPLACE`; prod schema diverges from migration files while CLI says "up to date" | 14 RPCs callable with anon key; wealth: tenant isolation was a no-op        |
 | 2   | **No error monitoring** — bugs discovered by user report; errors swallowed                                                                                                                             | Only 1 of 20 repos had Sentry; "surface real errors" fix commits everywhere |
-| 3   | **Prod-only, build-green failures** — `'use server'` export-shape crashes, server-action deploy skew, service worker behind auth matcher                                                               | nav: users wedged on stale SW (costliest single incident)                   |
-| 4   | **Capacity blind spots** — unbounded queries, per-item auth in loops, silent 1000-row PostgREST cap, Vercel 60s/300s function walls                                                                    | nav: bulk fetch × retries took prod down                                    |
+| 3   | **Prod-only, build-green failures** — `'use server'` export-shape crashes, server-action deploy skew, service worker behind auth matcher                                                               | users wedged on stale SW (costliest single incident)                        |
+| 4   | **Capacity blind spots** — unbounded queries, per-item auth in loops, silent 1000-row PostgREST cap, Vercel 60s/300s function walls                                                                    | bulk fetch × retries took prod down                                         |
 | 5   | **Third-party contract drift** — API response shapes change, timeouts too low, stale webhook secrets fail silently                                                                                     | PRIMA: captures silently lost for weeks (403 on stale secret)               |
-| 6   | **Async job zombies** — deleting a run row doesn't cancel the in-flight chain; retry storms                                                                                                            | astrolabe: one zombie = 78% of a month's spend                              |
-| 7   | **Local tooling self-sabotage** — `.next` corruption (build-then-dev, twin dev servers), local dev pointed at prod DB, parallel-thread git collisions                                                  | space: stale middleware artifact → 40GB swap; nav: prod outage              |
+| 6   | **Async job zombies** — deleting a run row doesn't cancel the in-flight chain; retry storms                                                                                                            | one zombie = 78% of a month's spend                                         |
+| 7   | **Local tooling self-sabotage** — `.next` corruption (build-then-dev, twin dev servers), local dev pointed at prod DB, parallel-thread git collisions                                                  | stale middleware artifact → 40GB swap; nav: prod outage                     |
 | 8   | **Perennial afterthoughts** — mobile regressions, PWA manifest/icon breakage, money-math bugs only audits catch                                                                                        | 4 repos with identical late icon-fix commits                                |
 
 ## Lifecycle stages
@@ -45,7 +44,7 @@ Run the full [client-setup-checklist.md](client-setup-checklist.md). Non-negotia
 
 ### Stage 2 — Pre-launch gate
 
-Run **`/prod-ready`** (global skill). It verifies:
+Run the pre-launch gauntlet in this playbook. It verifies:
 
 - Error boundaries present (`error.tsx`, `global-error.tsx`, `not-found.tsx`)
 - Sentry wired (client + server) with release tagging
@@ -73,17 +72,17 @@ and a `books`-style multi-track audit for money/calculation logic.
 - Sentry inbox triaged; every prod incident gets a postmortem entry in `docs/gotchas.md` (symptom → root cause → rule). Rules graduate into this playbook.
 - Spend tripwires on any LLM/API-heavy pipeline: daily spend vs 7-day baseline; >3× → alert. (class 6)
 - Weekly Dependabot PRs triaged; high-severity CVEs patched within the week.
-- Quarterly: re-run `/prod-ready` + restore drill + multi-track audit for financial apps.
+- Quarterly: re-run the pre-launch gauntlet + restore drill + multi-track audit for financial apps.
 
 ## Walking the user through service consoles (rule)
 
 When any step needs the user to click through a service dashboard (Sentry, Supabase, Vercel, GitHub), give **step-by-step instructions with direct deep links every time** — construct the URL from the service's known pattern rather than describing menus. Verified patterns:
 
-- **Sentry DSN**: `https://<org>.sentry.io/settings/projects/<project>/keys/` (e.g. `https://peak-state.sentry.io/settings/projects/nav-peakstate-global/keys/`). Menu paths are unreliable — link straight to the keys page. Wizard note: `pnpm dlx @sentry/wizard` hardcodes the DSN in its config files and adds a `.env.sentry-build-plugin` token file — prefer env-driven DSN (`NEXT_PUBLIC_SENTRY_DSN`) and put `SENTRY_AUTH_TOKEN` in Vercel for source maps.
+- **Sentry DSN**: `https://<org>.sentry.io/settings/projects/<project>/keys/` (e.g. `https://<your-org>.sentry.io/settings/projects/nav-peakstate-global/keys/`). Menu paths are unreliable — link straight to the keys page. Wizard note: `pnpm dlx @sentry/wizard` hardcodes the DSN in its config files and adds a `.env.sentry-build-plugin` token file — prefer env-driven DSN (`NEXT_PUBLIC_SENTRY_DSN`) and put `SENTRY_AUTH_TOKEN` in Vercel for source maps.
 - **Vercel env vars**: `https://vercel.com/<team>/<project>/settings/environment-variables`
 - **Supabase backups/PITR**: `https://supabase.com/dashboard/project/<ref>/database/backups`
 - **GitHub Actions secrets**: `https://github.com/<owner>/<repo>/settings/secrets/actions`
-- **Better Uptime**: monitors list `https://uptime.betterstack.com/monitors` (monitor: `/monitors/<id>`); API tokens `https://uptime.betterstack.com` → Integrations → API tokens. `/prod-ready` check 15 can create monitors/heartbeats itself via the RW token (held in the status hub's `.env.local`).
+- **Better Uptime**: monitors list `https://uptime.betterstack.com/monitors` (monitor: `/monitors/<id>`); API tokens `https://uptime.betterstack.com` → Integrations → API tokens. the pre-launch gauntlet check 15 can create monitors/heartbeats itself via the RW token (held in the status hub's `.env.local`).
 
 If a link pattern turns out wrong, fix it here in the same turn (doc bug).
 
@@ -91,7 +90,7 @@ If a link pattern turns out wrong, fix it here in the same turn (doc bug).
 
 - **Database**: Supabase PITR on every client project with real user data (paid plan; non-negotiable). Plus nightly `pg_dump` via **GitHub Actions** (not n8n — VPS OOM lesson) → **Cloudflare R2**, not GitHub artifacts. Ship [`.github/workflows/db-backup.yml`](../.github/workflows/db-backup.yml) (R2 variant). Why R2 over GitHub artifacts: GitHub's free artifact storage is 500 MB — daily dumps × 90-day retention blow it; R2 storage is effectively free and unlimited, and Actions minutes (~3 min/run) stay far under the 2,000/mo free tier.
 - **Backup bucket rules**: a **dedicated PRIVATE R2 bucket for DB dumps** — never the app's media bucket (that may be public-read; a DB dump in a public bucket is a breach). Set a lifecycle rule on the bucket (delete after N days) since R2 has no per-object TTL.
-- **One central bucket vs per-client?** For **our own** apps (peakstate/irama), a single central backup bucket with per-app key prefixes (`<app>/<date>.dump`) is fine — simplest. For **client** work, **per-client buckets in the client's own Cloudflare account** (Model A): a central bucket holding every client's DB dumps makes us data custodian for all of them (DPA/liability) and turns one bucket compromise into an all-client breach. Isolation wins; the extra bucket per client is cheap.
+- **One central bucket vs per-client?** For a fleet you own outright, a single central backup bucket with per-app key prefixes (`<app>/<date>.dump`) is fine — simplest. For **client** work, **per-client buckets in the client's own Cloudflare account** (Model A): a central bucket holding every client's DB dumps makes us data custodian for all of them (DPA/liability) and turns one bucket compromise into an all-client breach. Isolation wins; the extra bucket per client is cheap.
 - **Alternative runner — self-hosted n8n** (when GitHub Actions minutes are constrained): fold the dump into the existing keepalive workflow, but **stream** `pg_dump | aws s3 cp -` straight to R2 via an Execute Command node — NEVER buffer the dump in an n8n node (that OOM'd the VPS once and forced the move to Actions). Handoff prompt: [`docs/prompts/n8n-db-backup.md`](prompts/n8n-db-backup.md). A daily backup also keeps a free-tier DB from pausing (keepalive + backup = one job), but keep the lightweight keepalive query as the guaranteed floor so a failed dump never lets a project pause.
 - **Restore drill before launch**: restore the dump into a scratch project once. A backup never restored is a hope, not a backup.
 - **Automation/workflow configs** (n8n, trigger.dev): snapshot JSON to git with a `backup: <name> pre-edit` commit before every edit.

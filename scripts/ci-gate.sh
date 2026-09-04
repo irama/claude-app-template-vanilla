@@ -20,8 +20,10 @@
 set -uo pipefail
 
 GATE_VERSION="6"
-HUB_URL="${GATE_REPORT_URL:-https://status.peakstate.global/api/gate-report}"
-SECRET_FILE="${GATE_REPORT_ENV:-$HOME/.config/peakstate/gate-report.env}"
+# Both are set per-machine. With GATE_REPORT_URL unset the gate still runs and simply
+# reports nowhere, which is the right default for anyone who cloned this template.
+HUB_URL="${GATE_REPORT_URL:-}"
+SECRET_FILE="${GATE_REPORT_ENV:-$HOME/.config/gate-report.env}"
 
 # owner/name from the origin remote — keeps this script identical in every repo.
 origin="$(git remote get-url origin 2>/dev/null || true)"
@@ -45,7 +47,7 @@ done
 # Deletion-only push. `git push origin --delete <branch>` sends no content, so gating it is
 # pure waste — and the old HEAD fallback below attributed the result to whatever HEAD
 # happened to be, producing a report for a commit the push never touched. That is not a
-# theoretical edge: on 2026-08-08 a branch cleanup in space.irama.org ran the full gate
+# theoretical edge: on 2026-08-08 a branch cleanup in another app ran the full gate
 # (including `next build`) and posted `{branch:"", result:"fail"}` against a sha whose real
 # gate had passed thirteen minutes earlier, turning the hub's CI tile amber.
 if [ "$saw_ref" = "1" ] && [ "$saw_real_ref" = "0" ]; then
@@ -170,7 +172,7 @@ fi
 if [ -d "src/lib/agent-surface/vendor" ]; then
   # The sync script lives in the STANDARD's checkout, not in the app being gated — pointing
   # at "$gate_root" made the drift check silently skip in every repo except the hub.
-  std_root="${FLEET_STANDARD_ROOT:-$HOME/LOCAL-DEV/status.peakstate.global}"
+  std_root="${FLEET_STANDARD_ROOT:-}"
   if [ -f "$std_root/scripts/sync-agent-surface-tests.mjs" ]; then
     node "$std_root/scripts/sync-agent-surface-tests.mjs" --check --targets "$PWD" </dev/null \
       || { echo "  ^ agent-surface: vendored suite has drifted from the canonical copy"; exit 1; }
@@ -204,7 +206,7 @@ fi
 #
 # Output is tee'd rather than captured so the pusher still watches the run live; `pipefail`
 # (set at the top) makes the pipeline carry the subshell's exit status, not tee's. Promoted
-# from hoomans-hackerman, which worked this out first and carried it alone.
+# from the app that worked this out first and carried it alone.
 gate_result="pass"
 gate_log="$(mktemp)"
 if ! { (pnpm run typecheck && pnpm exec eslint src && pnpm exec vitest run) </dev/null 2>&1 | tee "$gate_log"; }; then
@@ -240,7 +242,7 @@ if [ -f "$SECRET_FILE" ]; then
   . "$SECRET_FILE"                                # defines GATE_REPORT_SECRET
   set -u
 fi
-if [ -n "${GATE_REPORT_SECRET:-}" ] && [ -n "$sha" ] && [ -n "$REPO" ]; then
+if [ -n "$HUB_URL" ] && [ -n "${GATE_REPORT_SECRET:-}" ] && [ -n "$sha" ] && [ -n "$REPO" ]; then
   device="$(hostname -s 2>/dev/null || echo unknown)"
   ran_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   # A double quote is a legal character in a git branch name, and interpolating one straight

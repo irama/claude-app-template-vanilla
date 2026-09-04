@@ -1,12 +1,11 @@
 # pnpm migration — rollback
 
-`claude-app-template-vanilla` moved from npm to pnpm on **2026-08-04** (fleet spec
-[#57](https://github.com/peakstate-global/status.peakstate.global/issues/57)). The cutover commit
+`claude-app-template-vanilla` moved from npm to pnpm on **2026-08-04**. The cutover commit
 is `761f054` ("build: cut over to pnpm — remove package-lock.json").
 
 **This repo has no Vercel project and no production deployment** — it is a template that other
 projects are scaffolded from. So there is no "instant rollback" step and no live site to protect;
-the only rollback is the code revert below. What *is* at stake is every project cloned from this
+the only rollback is the code revert below. What _is_ at stake is every project cloned from this
 template after the cutover, which starts on pnpm.
 
 ## Revert the whole migration range, not one commit
@@ -60,7 +59,7 @@ These are expected under pnpm and are not reasons to revert:
   `verifyDepsBeforeRun: error` doing its job. Run `pnpm install` in that directory once. It replaces
   pnpm's default of silently running a full install mid-gate.
 - Next warning that it picked a different workspace root in a nested worktree. Harmless; dev and
-  build both succeed. Deliberately *not* fixed with a `turbopack.root` setting, because a hardcoded
+  build both succeed. Deliberately _not_ fixed with a `turbopack.root` setting, because a hardcoded
   root would propagate into every project scaffolded from this template.
 - `@sentry/cli`, `sharp` and `unrs-resolver` reporting that their build scripts were not run. Each
   is denied in `pnpm-workspace.yaml`'s `allowBuilds` on purpose — all three ship their platform

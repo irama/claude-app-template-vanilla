@@ -51,29 +51,29 @@ each project, in this order:
 
 3.  **Heartbeat ping (only on backup success).** HTTP GET the project's Better Uptime
     heartbeat so a missed/failed backup pages us:
-    - nav → `https://uptime.betterstack.com/api/v1/heartbeat/JRcRx4MiLW87pfgN9fnrbGLS`
-    - books → `https://uptime.betterstack.com/api/v1/heartbeat/2Zmu5aY7bCrHtQXUfK9nLhAZ`
-    - (other projects: create a heartbeat in Better Uptime first, or ask for the URLs.)
+    - one heartbeat URL per project, `https://uptime.betterstack.com/api/v1/heartbeat/<id>`
+    - create the heartbeat in Better Uptime first; keep the URLs in the n8n credential
+      store, never in a repo — the URL IS the credential.
 4.  **On failure** — surface the error the way the other workflows do (the Errors tab /
     notification), and do NOT ping the heartbeat, so it goes stale and alerts.
 
 ## Config
 
-- **Backup bucket:** a DEDICATED PRIVATE R2 bucket for DB dumps (`peakstate-db-backups`) —
-  never an app's public media bucket. Key layout `s3://peakstate-db-backups/<app>/<YYYY-MM-DD>.dump`.
+- **Backup bucket:** a DEDICATED PRIVATE R2 bucket for DB dumps —
+  never an app's public media bucket. Key layout `s3://<backup-bucket>/<app>/<YYYY-MM-DD>.dump`.
 - **Retention:** set an R2 lifecycle rule on the bucket (delete after 90 days) in the
   Cloudflare dashboard — don't manage retention in the workflow.
 - **Connection strings:** session-pooler URIs, per project, from n8n credentials (the
-  keepalive workflow already holds DB access — reuse it). Projects to cover first: **nav,
-  books**; then extend to the rest the keepalive already loops (wealth, zero, prima, space,
-  spark, …) — add each project's R2 prefix + heartbeat as you go.
+  keepalive workflow already holds DB access — reuse it). Cover one or two projects first,
+  then extend to the rest the keepalive already loops — add each project's R2 prefix and
+  heartbeat as you go.
 - **Schedule:** nightly, staggered a few minutes apart per project so N dumps don't run
   concurrently and spike host memory/CPU.
 
 ## Verify before calling it done
 
 - Trigger once manually. Confirm: keepalive ran, an object landed at
-  `s3://peakstate-db-backups/nav/<today>.dump` (and books), the heartbeat flipped to
+  `s3://<backup-bucket>/<app>/<today>.dump`, the heartbeat flipped to
   "received" in Better Uptime, and **host memory stayed flat during the dump** (watch
   `free -m` / container stats — this is the specific thing that failed last time).
 - Download one dump and `pg_restore --list` it to confirm it's a valid archive, not a
@@ -81,5 +81,5 @@ each project, in this order:
 
 ## After it works
 
-Tell me, and I'll disable the GitHub Actions `db-backup.yml` in nav + books so backups
+Tell me, and I'll disable the GitHub Actions `db-backup.yml` in each app so backups
 don't run in two places. Until then they're harmless (Actions is billing-blocked anyway).

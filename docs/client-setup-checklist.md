@@ -42,7 +42,7 @@ project's first GitHub issue (or `.scratch/setup.md` pre-remote) and check items
 ## 5. Database & backups
 
 - [ ] All SQL under `data/supabase/` (template convention)
-- [ ] RLS enabled on every table from the first migration; RLS smoke test in CI or `/prod-ready`
+- [ ] RLS enabled on every table from the first migration; RLS smoke test in CI or the pre-launch gauntlet
 - [ ] PITR enabled (Supabase → Database → Backups) for any real user data
 - [ ] Nightly `pg_dump` GitHub Action → **dedicated private R2 bucket** (ship `.github/workflows/db-backup.yml`; secrets: `PROD_DATABASE_URL`, `R2_*`, `BACKUP_R2_BUCKET`); set a bucket lifecycle rule. Never the media bucket. Client work → bucket in the client's own Cloudflare account (see playbook § Backups)
 - [ ] **Restore drill completed once** (dump → scratch project → app boots against it)
@@ -57,7 +57,7 @@ project's first GitHub issue (or `.scratch/setup.md` pre-remote) and check items
 
 ## 7. Pre-launch
 
-- [ ] `/prod-ready` passes (full gauntlet — see playbook Stage 2)
+- [ ] the pre-launch gauntlet passes (full gauntlet — see playbook Stage 2)
 - [ ] `/security-check` on auth/payment/data surfaces
 - [ ] Mobile 375px pass on all key routes; PWA icons/manifest via `/app-icons`
 - [ ] `/sw.js` + manifest reachable signed-out (200, not 307) if PWA
@@ -68,5 +68,5 @@ project's first GitHub issue (or `.scratch/setup.md` pre-remote) and check items
 
 - [ ] `docs/gotchas.md` created (empty is fine — it's the postmortem log)
 - [ ] Dependabot triage owner named; CVE SLA: high severity ≤ 1 week
-- [ ] Quarterly re-run of `/prod-ready` + restore drill scheduled
+- [ ] Quarterly re-run of the pre-launch gauntlet + restore drill scheduled
 - [ ] Client access doc final: what they own, what we access, offboarding steps
