@@ -1,0 +1,40 @@
+# pnpm settings for this single-package repo.
+#
+# This file DOES make the repo a pnpm workspace root — that is unavoidable, it is the only
+# place pnpm 11 reads these settings from. There is deliberately no `packages:` list, so the
+# workspace contains the root package and nothing else.
+#
+# Consequence to know about: a nested worktree without its own copy of this file resolves
+# upward to the main checkout, so `pnpm -r` run from such a worktree acts on the main
+# checkout. The file is tracked, so every worktree cut after this commit has its own copy.
+#
+# `pnpm run`/`pnpm exec` default to `verifyDepsBeforeRun: install`, which silently runs a full
+# install (and can rewrite pnpm-lock.yaml) whenever node_modules is out of sync with the
+# lockfile — mid-gate or mid-editor-hook. `error` makes that a hard ERR_PNPM_VERIFY_DEPS_BEFORE_RUN
+# instead. It MUST live here: pnpm 11 reads this key from pnpm-workspace.yaml only, never .npmrc.
+verifyDepsBeforeRun: error
+
+# Dependency build scripts — allowlist, audited one package at a time (pnpm 11's
+# `allowBuilds` map: true = may run install/postinstall scripts, false = may not).
+# All three packages flagged here ship their platform binary as an OPTIONAL dependency,
+# which pnpm installs without running any script. The install script is therefore only a
+# verification or from-source fallback path this template never needs — so each is denied,
+# and none of them gets arbitrary code execution at install time.
+#
+# THIS IS A TEMPLATE: an app scaffolded from it that adopts next/image or Sentry source-map
+# upload must revisit the relevant entry below — each says exactly when to flip it.
+allowBuilds:
+  # postinstall downloads the sentry-cli binary for source-map upload at build time.
+  # next.config.ts does NOT call withSentryConfig and nothing invokes sentry-cli, so the
+  # binary is never used. @sentry/cli-darwin (and the Linux equivalents on CI/Vercel)
+  # install as optional deps anyway. Flip to true if source-map upload is wired into the build.
+  '@sentry/cli': false
+  # install script is `node install/check.js || npm run build` — verify the prebuilt
+  # @img/sharp-<platform> package, else compile libvips from source. @img/sharp-darwin-arm64
+  # (and the Linux equivalents on CI/Vercel) install as optional deps, and this template
+  # imports no next/image at all, so sharp is never loaded. Flip to true if next/image is adopted.
+  sharp: false
+  # postinstall is `napi-postinstall unrs-resolver 1.11.1 check` — a check that the napi
+  # binding installed. @unrs/resolver-binding-<platform> installs as an optional dep, and
+  # eslint's typescript import resolver loads it fine without the check running.
+  unrs-resolver: false

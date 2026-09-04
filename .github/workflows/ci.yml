@@ -1,0 +1,108 @@
+name: CI
+
+on:
+  # No push trigger: the local husky pre-push hook runs typecheck + lint + tests
+  # before every push, so re-running them in the cloud on each push just burns
+  # metered Actions minutes (private repo). CI stays available on PRs and on demand.
+  pull_request:
+    branches: [main]
+  # Weekly clean-room CI (plan d) — drift/bypass backstop; staggered to avoid fleet contention.
+  schedule:
+    - cron: '0 3 * * 0'
+  workflow_dispatch:
+
+jobs:
+  quality:
+    name: Type check, lint, test, build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        # Version comes from package.json's `packageManager` field — never pin a
+        # second version here, or the two drift.
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        # `--frozen-lockfile` is safe here where `npm ci` was not: pnpm's lockfile records
+        # every platform's optional deps, so a macOS (arm64) generated lockfile installs
+        # cleanly on Linux. That cross-platform gap — Linux transitive optional deps such as
+        # @rolldown/binding-wasm32-wasi's nested @emnapi/* entries going missing — is what
+        # forced `npm install` over `npm ci` under npm. It no longer applies.
+        run: pnpm install --frozen-lockfile
+
+      - name: Type check
+        run: pnpm run typecheck
+
+      - name: Lint
+        run: pnpm exec eslint src
+
+      - name: Test with coverage
+        run: pnpm run test:coverage
+
+      - name: Build
+        run: pnpm run build
+        env:
+          NODE_OPTIONS: '--max-old-space-size=4096'
+          # Add any build-time env vars here (use GitHub Secrets for real values)
+          NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL || 'http://localhost:3000' }}
+
+      - name: Bundle size check
+        run: pnpm run size
+
+      - name: Security audit
+        # Blocking on CRITICAL, production dependencies only — fleet policy,
+        # 2026-07-26 (tracked on the fleet roadmap, open item C).
+        #
+        # Not --audit-level=high: fleet-wide the remaining highs are
+        # `fixAvailable: false` build-tooling transitives (brace-expansion →
+        # minimatch → glob → … ), so that gate can never go green and only
+        # teaches people to ignore CI. Not `continue-on-error` either — that
+        # hides a real critical. Highs stay visible via Dependabot on the status
+        # hub's CI tile; only the blocking threshold moved.
+        #
+        # `pnpm audit --json`'s top-level shape matches npm's classic audit schema —
+        # verified against a real run in this repo (pnpm 11.1.2, 2026-08-04):
+        # `{ advisories, metadata }` with metadata.vulnerabilities.{info,low,moderate,
+        # high,critical} and metadata.devDependencies === 0 under `--prod`. Only the flag
+        # differs: `--prod` is pnpm's `--omit=dev`. Exit code is non-zero whenever any
+        # vulnerability is found, so the exit code alone decides nothing — the JSON does.
+        #
+        # The JSON parse separates "the advisory endpoint is broken" from "this repo has a
+        # critical CVE". Only the latter fails the build; a broken endpoint is a loud warning.
+        # Valid JSON alone is NOT enough — pnpm emits well-formed JSON for its OWN errors
+        # (e.g. {"error":{"code":"pnpm","message":"fetch failed"}}), which carries no
+        # metadata.vulnerabilities.critical. Require that exact shape, so a missing key can
+        # never silently read as zero criticals.
+        run: |
+          set -o pipefail
+          if ! pnpm audit --json --prod > /tmp/audit.json 2>/tmp/audit.err; then
+            : # non-zero also means "vulnerabilities found" — the JSON below decides
+          fi
+          node -e "
+            const fs = require('fs');
+            let a;
+            try {
+              a = JSON.parse(fs.readFileSync('/tmp/audit.json', 'utf8'));
+            } catch {
+              console.log('::warning::pnpm audit could not run (unparseable output) — NOT a repo finding:');
+              console.log(fs.readFileSync('/tmp/audit.err', 'utf8'));
+              process.exit(0);
+            }
+            const v = a && a.metadata && a.metadata.vulnerabilities;
+            if (!v || !Number.isInteger(v.critical) || v.critical < 0) {
+              console.log('::warning::pnpm audit could not run (registry/advisory endpoint error) — NOT a repo finding:');
+              console.log(JSON.stringify(a));
+              process.exit(0);
+            }
+            console.log('prod deps —', JSON.stringify(v));
+            if (v.critical > 0) { console.error('::error::' + v.critical + ' CRITICAL vulnerabilities in production dependencies'); process.exit(1); }
+          "

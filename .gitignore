@@ -1,0 +1,66 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+*.pem
+
+# debug
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# local env files
+.env*.local
+.env
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# test coverage
+coverage/
+*.lcov
+
+# editor
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+
+# local work-in-progress (not for version control)
+WIP-LOCAL/
+
+# local tickets before a remote tracker exists (Matt Pocock skills)
+.scratch/
+
+# claude multi-thread worktrees + local multi-root workspace file
+.claude/worktrees/
+claude-app-template-vanilla.code-workspace
+
+# Private literal list for the leak guard, never published
+.leakrc
+
+# Python bytecode
+__pycache__/
+*.pyc

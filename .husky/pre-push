@@ -1,0 +1,4 @@
+# Local gate + attestation before push (plan c). Runs the repo gate, then best-effort
+# reports the result to the status hub (fail-open — telemetry never blocks a push).
+# Skip in a pinch: git push --no-verify
+exec "$(git rev-parse --show-toplevel)/scripts/ci-gate.sh"
