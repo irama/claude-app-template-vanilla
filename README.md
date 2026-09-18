@@ -6,6 +6,8 @@ A reusable starting point for building production-quality **Next.js apps with Cl
 
 Next.js 15 (App Router) · TypeScript (strict) · Tailwind CSS · Vitest + Testing Library · ESLint + Prettier · Vercel. Database/Auth is per-project (Supabase by default).
 
+A "new version · reload" pill (`src/components/update-pill.tsx`) sits bottom-right in every app and nudges a tab left open across a deploy to reload. It compares `NEXT_PUBLIC_BUILD_SHA` (set in `next.config.ts` from `VERCEL_GIT_COMMIT_SHA`) against the `sha` returned by `GET /api/health`.
+
 ## Start a new project from this template
 
 1. Clone or "Use this template", then update `CLAUDE.md` (app name, one-liner, database choice) and fill in `PROJECT_SPEC.md` — the source of truth for features, data models, and scope. Delete the template note at the top of `CLAUDE.md`.

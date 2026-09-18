@@ -4,9 +4,10 @@
 
 ## Registered Patterns
 
-| Pattern                                                       | Component(s)                              | Keywords                                                           |
-| ------------------------------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------ |
-| Tooltip (portaled, collision-aware; anchored + cursor-follow) | `src/lib/tooltip` (`useTooltip`, `<Tip>`) | tooltip, hover, hint, portal, placement, flip, follow, clip, title |
+| Pattern                                                                       | Component(s)                                    | Keywords                                                           |
+| ----------------------------------------------------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------ |
+| Tooltip (portaled, collision-aware; anchored + cursor-follow)                 | `src/lib/tooltip` (`useTooltip`, `<Tip>`)       | tooltip, hover, hint, portal, placement, flip, follow, clip, title |
+| Update pill (stale-bundle reload nudge, bottom-right, mounted in root layout) | `src/components/update-pill.tsx` (`UpdatePill`) | update, reload, stale, new version, deploy, service worker, health |
 
 ## Before you build — mandatory search process
 

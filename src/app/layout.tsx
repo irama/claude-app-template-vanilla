@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { SpeedInsights } from '@vercel/speed-insights/next';
+import { UpdatePill } from '@/components/update-pill';
 import './globals.css';
 import '@/lib/tooltip/tooltip.css';
 
@@ -16,6 +17,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className={inter.className}>
         {children}
+        <UpdatePill />
         <SpeedInsights />
       </body>
     </html>

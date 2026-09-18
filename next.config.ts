@@ -2,6 +2,11 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  env: {
+    // Commit baked into the client bundle at build time, read by the update
+    // pill (src/components/update-pill.tsx) to detect a stale tab.
+    NEXT_PUBLIC_BUILD_SHA: process.env.VERCEL_GIT_COMMIT_SHA || 'dev',
+  },
   async headers() {
     return [
       {
