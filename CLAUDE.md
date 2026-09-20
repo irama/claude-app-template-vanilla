@@ -54,6 +54,7 @@ Never use the Grep tool (disabled globally) or read whole directories to search.
 
 Read [`docs/conventions.md`](docs/conventions.md) for TypeScript, component, styling, API, testing, and commit rules.
 Read [`docs/testing-workflow.md`](docs/testing-workflow.md) for when to write tests first vs. alongside (pragmatic TDD).
+Read [`docs/classifier-cascade.md`](docs/classifier-cascade.md) before building any decision the app makes from text — classify with a cheap System One model first and escalate only the low-confidence cases.
 
 **Key rules to always follow:**
 
