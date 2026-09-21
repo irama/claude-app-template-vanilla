@@ -8,25 +8,26 @@ file, then builds on top. Nothing here is app-specific by design.
 
 ## Commands
 
-| Task | Command |
-| --- | --- |
-| Install | `npm install` |
-| Dev server | `npm run dev` |
-| Build | `npm run build` |
-| Test (once) | `npm test -- run` (bare `npm test` starts Vitest in watch mode) |
-| Test + coverage | `npm run test:coverage` |
-| Lint | `npm run lint` (`eslint src --fix`) |
-| Typecheck | `npm run typecheck` |
-| Format | `npm run format` |
-| Everything | `npm run check` — typecheck + lint + tests |
-| First-load bundle budget | `npm run size` |
+| Task                     | Command                                                         |
+| ------------------------ | --------------------------------------------------------------- |
+| Install                  | `npm install`                                                   |
+| Dev server               | `npm run dev`                                                   |
+| Build                    | `npm run build`                                                 |
+| Test (once)              | `npm test -- run` (bare `npm test` starts Vitest in watch mode) |
+| Test + coverage          | `npm run test:coverage`                                         |
+| Lint                     | `npm run lint` (`eslint src --fix`)                             |
+| Typecheck                | `npm run typecheck`                                             |
+| Format                   | `npm run format`                                                |
+| Everything               | `npm run check` — typecheck + lint + tests                      |
+| First-load bundle budget | `npm run size`                                                  |
 
 CI (`.github/workflows/ci.yml`, Node 20, PRs + weekly + manual only — no push trigger) runs:
 typecheck → `npx eslint src` → `npm run test:coverage` → build → `npm run size` → `npm audit`
 (blocking on **critical** production advisories only). Husky `pre-commit` and `pre-push`
 (`scripts/ci-gate.sh`) run the same gates locally, which is why CI has no push trigger.
-`.github/workflows/db-backup.yml` is a nightly Supabase → Cloudflare R2 dump; it is inert until
-the required repo secrets exist.
+There is no backup workflow. Fleet apps declare `backups.wanted` in `status-manifest.json` and the
+status hub backs them up centrally over REST with gzip. Client work that the hub cannot reach restores
+the old `pg_dump` → R2 workflow from `git show 9c095d4:.github/workflows/db-backup.yml`.
 
 ## Layout
 
