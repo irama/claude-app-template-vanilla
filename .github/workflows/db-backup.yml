@@ -2,6 +2,12 @@
 # R2-only (no GitHub artifact) so it uses zero GitHub storage quota. Supabase
 # Free has no scheduled backups — this is the restore path until PITR/Pro.
 #
+# PREFER THE STATUS HUB'S CENTRAL BACKUP. Declare backups.wanted in
+# status-manifest.json instead (see /prod-ready check 12). The hub downloads
+# over PostgREST with Accept-Encoding: gzip, about 11x less Supabase egress
+# (256.7 KB -> 23.3 KB per 1,000-row page). pg_dump uses the Postgres wire
+# protocol, which has no compression, so every run bills the full data size.
+#
 # Required GitHub secrets (Settings → Secrets and variables → Actions):
 #   PROD_DATABASE_URL     Session Pooler connection string (same as .env.local)
 #   R2_ACCOUNT_ID         Cloudflare account id
