@@ -1,0 +1,10 @@
+{
+  "_about": "sha256 of each vendored Jev file, stamped in the golden repo. Regenerate with scripts/jev-sync.py --update, then copy every file listed here into each repo that vendors the client.",
+  "files": {
+    "lib/jev.ts": "568380d033d8f3fedc5ab57dcfb060465dd16b37898cedc05550dd7e3eececfa",
+    "lib/jev.py": "ba41d348f963e7c68a462d769d545440103b1051b119bce65841623bcaa03751",
+    "lib/jev.test.ts": "9fb1479eb10001e768b4df5924fd768807b9c147bd625679c99d652ad329be99",
+    "lib/jev_conformance_test.py": "42a680b59a912f3550515e351e6ea5ea78897ef1071c91d6a1f19d2a25172a12",
+    "lib/jev-fixtures.json": "876797f470eae6d3975e0ea55e78877c30f30d7803a88cf5883a9c7a947a9b2f"
+  }
+}

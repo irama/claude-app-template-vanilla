@@ -1,0 +1,9 @@
+# The vendored Jev client is byte-identical across every repo that holds it and is checksummed
+# by lib/jev.manifest.json. Formatting it here would report as drift in scripts/jev-sync.py.
+lib/jev.ts
+lib/jev.py
+lib/jev.test.ts
+lib/jev_conformance_test.py
+lib/jev-fixtures.json
+lib/jev.manifest.json
+scripts/jev-sync.py

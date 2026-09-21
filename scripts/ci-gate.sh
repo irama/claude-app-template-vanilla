@@ -29,6 +29,31 @@ SECRET_FILE="${GATE_REPORT_ENV:-$HOME/.config/gate-report.env}"
 origin="$(git remote get-url origin 2>/dev/null || true)"
 REPO="$(printf '%s' "$origin" | sed -E 's#(git@github\.com:|https://github\.com/)##; s#\.git$##')"
 
+# --- 0. --attest: re-gate the current HEAD by hand ---
+# The hub reports a repo as "unattested" whenever main's HEAD carries no gate result: a fleet
+# fan-out that pushed from another checkout, a dirty tree, a bypassed hook. Before this flag
+# the only way to clear that was to wait for the next ordinary push, so the amber outlived
+# the thread that could act on it and became wallpaper.
+#
+# This is NOT a stand-down and it cannot be used as one. It runs the SAME gate against the
+# SAME tree and posts whatever the gate actually says — a broken HEAD goes from "unattested"
+# to "gate FAILED on main", which is louder, not quieter. Every honesty rule below still
+# applies: a dirty tree refuses to attest, exactly as it does on a push.
+#
+# `--attest <sha>` takes the commit you MEANT to gate and refuses if HEAD is not it. Without
+# that argument the command is a gesture: run it from a feature worktree, a locally-advanced
+# main or a stale checkout and it spends a full gate on some other commit, reports THAT, and
+# the tile you were trying to clear does not move — while the new row may now speak for an
+# unrelated branch. The hub prints the SHA into the command for exactly this reason. The bare
+# form still works for "gate whatever I am on", which is the deliberate, local case.
+attest_by_hand=0
+attest_want=""
+if [ "${1:-}" = "--attest" ]; then
+  attest_by_hand=1
+  attest_want="${2:-}"
+  echo "ci-gate: --attest — gating HEAD and reporting it, no push"
+fi
+
 # --- 1. pushed ref/SHA from stdin ---
 # Three outcomes, and the difference between them is the whole point of this block:
 #   * a real ref  → gate it, attest it;
@@ -36,7 +61,10 @@ REPO="$(printf '%s' "$origin" | sed -E 's#(git@github\.com:|https://github\.com/
 #   * no ref list at all (a human running this by hand) → gate, but do NOT attest.
 ZERO="0000000000000000000000000000000000000000"
 sha=""; branch=""; saw_ref=0; saw_real_ref=0
-while read -r _local_ref local_sha remote_ref _remote_sha; do
+# --attest has no stdin ref list by definition. Reading anyway would block on a terminal, so
+# the loop is skipped and HEAD stands in for the pushed ref below.
+[ "$attest_by_hand" = "1" ] && saw_ref=1 && saw_real_ref=1
+[ "$attest_by_hand" = "1" ] || while read -r _local_ref local_sha remote_ref _remote_sha; do
   saw_ref=1
   [ "$local_sha" = "$ZERO" ] && continue          # branch deletion — nothing to attest
   saw_real_ref=1
@@ -62,6 +90,24 @@ fi
 # the hub renders a missing report as "unattested", which is the honest answer.
 head_sha="$(git rev-parse HEAD 2>/dev/null || true)"
 tree_clean="true"; [ -n "$(git status --porcelain)" ] && tree_clean="false"
+# --attest has no pushed ref, so HEAD IS the subject. Everything below then treats it exactly
+# like a push of HEAD — including the dirty-tree refusal, which is the whole safety property.
+if [ "$attest_by_hand" = "1" ]; then
+  sha="$head_sha"
+  branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+  # Fail before the gate, not after it. The whole cost of this mistake is a full test run
+  # spent on the wrong commit, so the check has to happen while it is still free.
+  case "$head_sha" in
+    "$attest_want"*) ;;
+    *)
+      if [ -n "$attest_want" ]; then
+        echo "ci-gate: --attest asked for ${attest_want} but HEAD is ${head_sha:0:7}." >&2
+        echo "         Check out that commit first (git fetch && git switch main && git pull --ff-only), or drop the sha to gate whatever you are on." >&2
+        exit 1
+      fi
+      ;;
+  esac
+fi
 attest=1
 if [ "$saw_real_ref" = "0" ]; then
   attest=0                                        # run by hand, no ref list — gate only
@@ -101,6 +147,15 @@ fi
 if [ -n "${CI_GATE_DRY_RUN:-}" ]; then
   echo "sha=$sha branch=$branch attest=$attest tree_clean=$tree_clean visual_port=${VISUAL_PORT:-unset}"
   exit 0
+fi
+
+# On a push, gating without attesting is still worth doing — the gate is what blocks a bad
+# push, and the report is only telemetry. On --attest the report IS the point, so running a
+# full gate that can report nothing is pure waste. Stop now and say what to fix instead.
+# Sits after the dry-run exit so the test harness can still inspect the refused decision.
+if [ "$attest_by_hand" = "1" ] && [ "$attest" = "0" ]; then
+  echo "ci-gate: --attest cannot report on a dirty tree. Commit or stash your changes, then run it again."
+  exit 1
 fi
 
 # --- 1b. cron guard (instant, runs before the expensive gate) ---
@@ -206,7 +261,7 @@ fi
 #
 # Output is tee'd rather than captured so the pusher still watches the run live; `pipefail`
 # (set at the top) makes the pipeline carry the subshell's exit status, not tee's. Promoted
-# from the app that worked this out first and carried it alone.
+# from hoomans-hackerman, which worked this out first and carried it alone.
 gate_result="pass"
 gate_log="$(mktemp)"
 if ! { (pnpm run typecheck && pnpm exec eslint src && pnpm exec vitest run) </dev/null 2>&1 | tee "$gate_log"; }; then
@@ -220,13 +275,42 @@ fi
 # third state SKIPS the attestation entirely rather than inventing a value the API would 400 on.
 if grep -q 'ERR_PNPM_VERIFY_DEPS_BEFORE_RUN' "$gate_log" 2>/dev/null; then
   gate_result="notrun"
-  echo "ci-gate: dependencies are out of sync with pnpm-lock.yaml — no check ran, so nothing was reported to the hub. Run \`pnpm install\` and push again." >&2
+  # Name the command the reader actually ran. "push again" is wrong advice under --attest,
+  # where there is no push to repeat, and wrong advice is what sends someone looking for a
+  # second problem that is not there.
+  retry="push again"; [ "$attest_by_hand" = "1" ] && retry="run --attest again"
+  echo "ci-gate: dependencies are out of sync with pnpm-lock.yaml — no check ran, so nothing was reported to the hub. Run \`pnpm install\` and $retry." >&2
 fi
 rm -f "$gate_log"
 # tree_clean is measured in step 1, BEFORE the gate — a gate that dirties the tree must not
 # be able to describe the tree it dirtied as the one it tested.
 
-# --- 3. best-effort report (fail-open) ---
+# --- 3a. local verdict record — ALWAYS, whenever the gate actually ran, whether or not
+# this run may attest to the hub. This is the hand-run mode: `sha` already fell back to
+# HEAD at step 1 even with no ref list on stdin, so a person running this script directly
+# in a worktree gates that worktree's HEAD and gets a row here. Before this block moved
+# above the hub early-return, `attest=0` (the hand-run case) skipped straight past it and
+# nothing was ever written — the gate button in the dashboard depends on this row existing
+# for the NEXT scan to read. `notrun` still skips it: no check ran, so there is no verdict
+# to record. The hub knows the gate ran, but only for repos with a registry row and a
+# secret on this device, and only over the network. The WIP dashboard runs offline against
+# every repo on the laptop, so without this it cannot tell a gated tip from one the Stop
+# hook committed with --no-verify. Append-only, fail-open, never blocks the push.
+# The gate always runs commands against the WORKING TREE (i.e. `head_sha`), never against
+# `$sha` — `$sha` is only what was NAMED on stdin as being pushed. When they differ (a
+# `git push <sha>:main` from a detached/older HEAD), recording the verdict under `$sha`
+# would claim a commit was gated when only `head_sha` ever ran through the checks. Record
+# under `head_sha` always, so the row never outlives the commit it actually tested.
+if [ "$gate_result" != "notrun" ] && [ -n "$head_sha" ] && [ -n "$REPO" ]; then
+  gate_log="$HOME/.claude/cache/gate-results.jsonl"
+  mkdir -p "$(dirname "$gate_log")" 2>/dev/null || true
+  esc() { local s=${1//\\/\\\\}; printf '%s' "${s//\"/\\\"}"; }
+  printf '{"repo":"%s","sha":"%s","branch":"%s","result":"%s","tree_clean":%s,"gate_version":"%s","ran_at":"%s"}\n' \
+    "$(esc "$REPO")" "$head_sha" "$(esc "$branch")" "$gate_result" "$tree_clean" "$GATE_VERSION" \
+    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$gate_log" 2>/dev/null || true
+fi
+
+# --- 3b. best-effort report to the hub (fail-open) — attestation only, never local record ---
 if [ "$attest" = "0" ] || [ "$gate_result" = "notrun" ]; then
   # Deliberately silent about the secret: nothing was claimed, so there is nothing to send.
   # `notrun` lands here too — a stale-deps abort still blocks the push (the exit below is
@@ -242,7 +326,7 @@ if [ -f "$SECRET_FILE" ]; then
   . "$SECRET_FILE"                                # defines GATE_REPORT_SECRET
   set -u
 fi
-if [ -n "$HUB_URL" ] && [ -n "${GATE_REPORT_SECRET:-}" ] && [ -n "$sha" ] && [ -n "$REPO" ]; then
+if [ -n "${GATE_REPORT_SECRET:-}" ] && [ -n "$sha" ] && [ -n "$REPO" ]; then
   device="$(hostname -s 2>/dev/null || echo unknown)"
   ran_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   # A double quote is a legal character in a git branch name, and interpolating one straight
