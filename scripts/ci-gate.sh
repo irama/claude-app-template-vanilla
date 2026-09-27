@@ -19,11 +19,9 @@
 # The hub reads GitHub's real main HEAD + Vercel's deployed SHA as the other two facts.
 set -uo pipefail
 
-GATE_VERSION="6"
-# Both are set per-machine. With GATE_REPORT_URL unset the gate still runs and simply
-# reports nowhere, which is the right default for anyone who cloned this template.
-HUB_URL="${GATE_REPORT_URL:-}"
-SECRET_FILE="${GATE_REPORT_ENV:-$HOME/.config/gate-report.env}"
+GATE_VERSION="7"
+HUB_URL="${GATE_REPORT_URL:-https://status.peakstate.global/api/gate-report}"
+SECRET_FILE="${GATE_REPORT_ENV:-$HOME/.config/peakstate/gate-report.env}"
 
 # owner/name from the origin remote — keeps this script identical in every repo.
 origin="$(git remote get-url origin 2>/dev/null || true)"
@@ -75,7 +73,7 @@ done
 # Deletion-only push. `git push origin --delete <branch>` sends no content, so gating it is
 # pure waste — and the old HEAD fallback below attributed the result to whatever HEAD
 # happened to be, producing a report for a commit the push never touched. That is not a
-# theoretical edge: on 2026-08-08 a branch cleanup in another app ran the full gate
+# theoretical edge: on 2026-08-08 a branch cleanup in space.irama.org ran the full gate
 # (including `next build`) and posted `{branch:"", result:"fail"}` against a sha whose real
 # gate had passed thirteen minutes earlier, turning the hub's CI tile amber.
 if [ "$saw_ref" = "1" ] && [ "$saw_real_ref" = "0" ]; then
@@ -169,6 +167,23 @@ if [ -f "$gate_root/scripts/check-crons.mjs" ]; then
   node "$gate_root/scripts/check-crons.mjs" "$gate_root/vercel.json" </dev/null || exit 1
 fi
 
+# --- 1b1. migration definer/PUBLIC window (all repos, instant) ---
+# Postgres grants EXECUTE on a NEW function to PUBLIC, so a migration that creates a
+# SECURITY DEFINER function and then revokes it from public/anon/authenticated leaves a window
+# where anon can call it - applied with a bare `psql -f`, every statement autocommits. A definer
+# function bypasses RLS, so for those milliseconds the lockdown the migration is about is off.
+# status.peakstate.global's backup_registry() returns the whole fleet keyring and had this
+# window until 2026-09-25; a code review found it, no test did. Blocks, like check-crons: the
+# fix is two lines and the failure is silent.
+#
+# --changed does its OWN git diff and reads the pushed commit. The selection used to live here
+# as a `git diff -z | xargs -0` pipeline and took three rounds of review defects, each one
+# leaving the guard a silent no-op. One argument, no pipe, and it is covered by a test suite.
+if [ -f "$gate_root/scripts/check-migration-definer-txn.mjs" ]; then
+  ( cd "$gate_root" && node scripts/check-migration-definer-txn.mjs --changed \
+      --rev "${sha:-HEAD}" ) </dev/null || exit 1
+fi
+
 # --- 1c. safe-ip fan-out guard (hub only, instant) ---
 # The canonical private-IP classifier lives here and is vendored into four sibling repos.
 # A fix landing here and NOT reaching them is the exact failure this file was created to end
@@ -227,7 +242,7 @@ fi
 if [ -d "src/lib/agent-surface/vendor" ]; then
   # The sync script lives in the STANDARD's checkout, not in the app being gated — pointing
   # at "$gate_root" made the drift check silently skip in every repo except the hub.
-  std_root="${FLEET_STANDARD_ROOT:-}"
+  std_root="${FLEET_STANDARD_ROOT:-$HOME/LOCAL-DEV/status.peakstate.global}"
   if [ -f "$std_root/scripts/sync-agent-surface-tests.mjs" ]; then
     node "$std_root/scripts/sync-agent-surface-tests.mjs" --check --targets "$PWD" </dev/null \
       || { echo "  ^ agent-surface: vendored suite has drifted from the canonical copy"; exit 1; }
@@ -258,6 +273,8 @@ fi
 # gate line is the one line each repo adjusts to its own package manager / script names, and the
 # fleet's copies are deliberately not byte-identical. npm repos keep `npm run … && npx …`.
 # GATE_VERSION 6: the command set gained the stale-deps check below.
+# GATE_VERSION 7: the command set gained the migration definer/PUBLIC window check above,
+# so a version-6 attestation cannot be read as having run it.
 #
 # Output is tee'd rather than captured so the pusher still watches the run live; `pipefail`
 # (set at the top) makes the pipeline carry the subshell's exit status, not tee's. Promoted
@@ -352,9 +369,9 @@ if [ -n "${GATE_REPORT_SECRET:-}" ] && [ -n "$sha" ] && [ -n "$REPO" ]; then
     # recorded as a hub bug when it was working as designed. Say what it means instead.
     # …but ONLY the hub's own "unknown repo" body. A stale GATE_REPORT_URL or a missing route
     # also 404s, and calling that "expected" would hide a real telemetry outage behind advice to
-    # register the repo with the hub (Codex review 2026-07-28).
+    # run /ingest-manifest (Codex review 2026-07-28).
     404) if grep -q 'unknown repo' "$resp" 2>/dev/null; then
-           echo "ci-gate: gate result not recorded — $REPO is not in the status-hub registry (expected for an unwatched repo; register it with the hub to add it)" >&2
+           echo "ci-gate: gate result not recorded — $REPO is not in the status-hub registry (expected for an unwatched repo; run /ingest-manifest there to add it)" >&2
          else
            echo "ci-gate: attestation POST failed (non-blocking) — HTTP 404 from $HUB_URL, which is not the hub's unknown-repo answer: $(tr -cd '[:print:]' <"$resp" | cut -c1-200)" >&2
          fi ;;
