@@ -90,6 +90,13 @@ Deep-dive references — consult when a gate needs detail, not by default:
 - [`docs/accessibility.md`](docs/accessibility.md) — keyboard hierarchy, Radix widget map, ARIA live regions, tabindex rules
 - [`docs/performance.md`](docs/performance.md) — data fetching, bundle, image/font patterns
 
+**Designing a new look and feel?** Start from a real product, not a blank page:
+[Refero Styles](https://styles.refero.design/) publishes design systems extracted from
+2,000+ product sites as AI-readable `DESIGN.md` files — pick one near the target feel and
+adapt it into this project's tokens. Then run the design through `/impeccable` (design,
+critique and polish) or Claude Design (the `claude-design` MCP: named design systems, live
+preview, review comments). Complex UI or a new layout uses one of the two, never neither.
+
 ## Agents & Commands
 
 Read [`docs/agents.md`](docs/agents.md) for the full list of available subagents and slash commands with guidance on when to use each.
