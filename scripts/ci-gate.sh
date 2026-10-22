@@ -19,7 +19,7 @@
 # The hub reads GitHub's real main HEAD + Vercel's deployed SHA as the other two facts.
 set -uo pipefail
 
-GATE_VERSION="7"
+GATE_VERSION="9"
 HUB_URL="${GATE_REPORT_URL:-https://status.peakstate.global/api/gate-report}"
 SECRET_FILE="${GATE_REPORT_ENV:-$HOME/.config/peakstate/gate-report.env}"
 
@@ -51,6 +51,12 @@ if [ "${1:-}" = "--attest" ]; then
   attest_want="${2:-}"
   echo "ci-gate: --attest — gating HEAD and reporting it, no push"
 fi
+# --gate-only: the landing gate (/driver's land step, a merge tree in a temp checkout). It gates
+# the working tree and records a pass to the heavy-job ledger like any run, but it reads no ref
+# list and never attests: a tree that is on no branch yet has nothing to report. The exit code
+# is the gate's.
+gate_only=0
+[ "${1:-}" = "--gate-only" ] && gate_only=1
 
 # --- 1. pushed ref/SHA from stdin ---
 # Three outcomes, and the difference between them is the whole point of this block:
@@ -62,7 +68,7 @@ sha=""; branch=""; saw_ref=0; saw_real_ref=0
 # --attest has no stdin ref list by definition. Reading anyway would block on a terminal, so
 # the loop is skipped and HEAD stands in for the pushed ref below.
 [ "$attest_by_hand" = "1" ] && saw_ref=1 && saw_real_ref=1
-[ "$attest_by_hand" = "1" ] || while read -r _local_ref local_sha remote_ref _remote_sha; do
+[ "$attest_by_hand" = "1" ] || [ "$gate_only" = "1" ] || while read -r _local_ref local_sha remote_ref _remote_sha; do
   saw_ref=1
   [ "$local_sha" = "$ZERO" ] && continue          # branch deletion — nothing to attest
   saw_real_ref=1
@@ -87,7 +93,22 @@ fi
 # the attestation a claim about code that was never run. Report nothing rather than a lie —
 # the hub renders a missing report as "unattested", which is the honest answer.
 head_sha="$(git rev-parse HEAD 2>/dev/null || true)"
-tree_clean="true"; [ -n "$(git status --porcelain)" ] && tree_clean="false"
+# CI_GATE_IGNORE_UNTRACKED: newline-separated paths whose UNTRACKED entry does not make the tree
+# dirty. The landing gate sets it to the symlinks it makes in its temp checkout (in ZERO,
+# `tools/usage-collector/node_modules` is a symlink no ignore rule matches); without it that
+# checkout always reads dirty and never records a pass. A tracked change always counts.
+porcelain="$(git status --porcelain 2>/dev/null)"
+if [ -n "${CI_GATE_IGNORE_UNTRACKED:-}" ] && [ -n "$porcelain" ]; then
+  ignore_list="$(printf '%s\n' "$CI_GATE_IGNORE_UNTRACKED" | sed 's#/*$##')"
+  porcelain="$(printf '%s\n' "$porcelain" | while IFS= read -r line; do
+    if [ "${line:0:3}" = "?? " ]; then
+      path="${line:3}"; path="${path%/}"
+      printf '%s\n' "$ignore_list" | grep -Fxq -- "$path" && continue
+    fi
+    printf '%s\n' "$line"
+  done)"
+fi
+tree_clean="true"; [ -n "$porcelain" ] && tree_clean="false"
 # --attest has no pushed ref, so HEAD IS the subject. Everything below then treats it exactly
 # like a push of HEAD — including the dirty-tree refusal, which is the whole safety property.
 if [ "$attest_by_hand" = "1" ]; then
@@ -156,6 +177,47 @@ if [ "$attest_by_hand" = "1" ] && [ "$attest" = "0" ]; then
   exit 1
 fi
 
+# --- 1a3. ledger check, then a slot (GATE_VERSION 9) ---
+# heavy-job (irama-skills, linked at ~/.claude/scripts/heavy-job) does two things here:
+#   * a ledger of trees that passed. `/merge`'s landing gate and `/push`'s pre-push gate used to
+#     run the full suite twice on one tree. A clean HEAD whose tree already passed THIS gate
+#     (same repo, same gate-id) in the last 7 days, or differs from one that did only in inert
+#     paths (root *.md, docs/**/*.md|html except docs/agent-surface.md, .scratch/**), skips the
+#     gate line. It still attests `pass`, and the conformance drift check and report.mjs still
+#     run, because their inputs live outside the tree.
+#   * a machine-wide slot. Too many suites at once pushed the load average to 314 on a 10-core
+#     laptop (2026-10-22), and every gate failure that day was a timing test failing on load.
+#     The slot is held until this script's pid exits.
+# Both come after ref parsing (stdin is the ref list) and the deletion-only exit, so a push
+# that gates nothing never queues. A missing tool prints one line and the gate runs unslotted.
+heavy_job="$HOME/.claude/scripts/heavy-job"
+[ -x "$heavy_job" ] || { echo "ci-gate: heavy-job not found at $heavy_job — running unslotted, no ledger"; heavy_job=""; }
+# gate-id hashes this repo's own gate line, so two command sets never share a ledger entry.
+gate_line_text="$(grep -m1 -E '^if ! (\{ )?\(' "${BASH_SOURCE[0]}")"
+gate_id="ci-gate v${GATE_VERSION} $(printf '%s' "$gate_line_text" | shasum -a 256 | cut -c1-12)"
+git_common="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+head_tree="$(git rev-parse 'HEAD^{tree}' 2>/dev/null || true)"
+# The ledger may speak only for a tree that is exactly HEAD's: clean, and HEAD is what is gated.
+ledger_ok=0
+[ -n "$heavy_job" ] && [ "$tree_clean" = "true" ] && [ "$sha" = "$head_sha" ] \
+  && [ -n "$git_common" ] && [ -n "$head_tree" ] && ledger_ok=1
+conformance=0; [ -d "src/lib/agent-surface/vendor" ] && conformance=1
+skipped=0; stored_vitest=""
+if [ "$ledger_ok" = "1" ] \
+  && match="$("$heavy_job" passed --repo "$git_common" --tree "$head_tree" --gate "$gate_id" </dev/null)"; then
+  stored_vitest="$(printf '%s\n' "$match" | sed -n 's/^vitest-json //p')"
+  if [ "$conformance" = "1" ] && [ ! -f "$stored_vitest" ]; then
+    echo "ci-gate: tree passed before but its vitest json is gone — running the gate"
+  else
+    skipped=1
+    echo "ci-gate: skip, $(printf '%s\n' "$match" | head -1) (gate-id $gate_id)"
+  fi
+fi
+if [ "$skipped" = "0" ] && [ -n "$heavy_job" ]; then
+  slot_env="$("$heavy_job" acquire --for-pid $$ </dev/null)" && eval "$slot_env" \
+    || echo "ci-gate: heavy-job acquire failed — running unslotted"
+fi
+
 # --- 1b. cron guard (instant, runs before the expensive gate) ---
 # A vercel.json cron that fires more than once a day makes Vercel Hobby refuse to CREATE the
 # deployment (cron_jobs_limits_reached), so the push succeeds while prod silently stays on the
@@ -215,7 +277,7 @@ if [ -f "$gate_root/scripts/sync-eslint-rules.mjs" ]; then
     || echo "  ^ eslint-rules: siblings are behind the canonical copy — run: node scripts/sync-eslint-rules.mjs"
 fi
 
-# --- 1c2. this script's own ref-parsing tests (canonical checkout only, ~1s) ---
+# --- 1c2. this script's own tests (canonical checkout only, ~15s) ---
 # The hook decides what to gate and what to attest before any of the expensive work runs, and
 # a mistake there is invisible until a wrong attestation reaches the hub. The tests are
 # hermetic (throwaway repos in a temp dir, no network, no gate), so the canonical copy pays a
@@ -236,9 +298,11 @@ fi
 # NOT path-filtered, deliberately (CONFORMANCE.md § CI triggers): auth behaviour changes
 # through shared libraries, middleware, package upgrades and DB functions, none of which
 # appear in any list of paths.
-# Cost: this is a SECOND full vitest run, because the report needs vitest's JSON output and
-# the triad above does not emit it. Worth fixing when it starts to hurt; the honest gate is
-# worth more than the seconds today.
+# GATE_VERSION 9: the report reads the gate line's OWN vitest run. A repo's vitest.config adds the
+# json reporter when VITEST_JSON_OUT is set, so the suite runs once, not twice. The json is
+# deleted first and must be newer than the gate start afterwards: report.mjs never checks the
+# file's age and would pass on last week's results. On a ledger skip the report reads the json
+# stored for the tree that matched.
 if [ -d "src/lib/agent-surface/vendor" ]; then
   # The sync script lives in the STANDARD's checkout, not in the app being gated — pointing
   # at "$gate_root" made the drift check silently skip in every repo except the hub.
@@ -251,20 +315,9 @@ if [ -d "src/lib/agent-surface/vendor" ]; then
     # window as `unverified` and --strict fails on that a few lines below.
     echo "  ^ agent-surface: canonical checkout not found at $std_root — drift unverified"
   fi
-  # Prefer `conformance:gate` — it writes report.mjs's output to an ignored path. The plain
-  # `conformance` script writes the TRACKED agent-surface-conformance.json, whose timestamps
-  # change every run, so a clean checkout went dirty here BEFORE the tree_clean check below:
-  # the attestation posted tree_clean=false for a checkout that was clean when the push
-  # started, and every push left uncommitted changes behind (observed in nav, 2026-08-01).
-  # Falls back to `conformance` so a repo that has not yet added the gate variant still runs
-  # a real gate rather than erroring — it just keeps the dirty-tree behaviour until it does.
-  # Deliberately NOT `--if-present`, which would silently skip the gate entirely.
-  if node -e "process.exit(require('./package.json').scripts?.['conformance:gate']?0:1)" 2>/dev/null; then
-    conformance_script="conformance:gate"
-  else
-    conformance_script="conformance"
-  fi
-  (pnpm run "$conformance_script") </dev/null || { echo "  ^ agent-surface: conformance gate failed"; exit 1; }
+  mkdir -p .agent-surface
+  rm -f .agent-surface/vitest.json
+  export VITEST_JSON_OUT="$PWD/.agent-surface/vitest.json"
 fi
 
 # --- 2. gate (secret NOT in env) — stdin redirected so tools don't swallow the ref list ---
@@ -279,11 +332,29 @@ fi
 # Output is tee'd rather than captured so the pusher still watches the run live; `pipefail`
 # (set at the top) makes the pipeline carry the subshell's exit status, not tee's. Promoted
 # from hoomans-hackerman, which worked this out first and carried it alone.
+# GATE_VERSION 8 (PRIMA, absorbed into canonical in 9): the command set gained the real-browser
+# tier, `test:browser`, run when package.json defines it (PRIMA's editor contract: real Chromium,
+# real key presses). Inert in a repo without that script: `browser_tier` is then `true`. This
+# block lives OUTSIDE the gate line, and `sync-ci-gate.mjs --write` replaces everything but the
+# gate line, so it must stay in canonical or PRIMA's `&& $browser_tier` dies under `set -u`.
+# Chromium is installed once per machine (`pnpm exec playwright install chromium`).
+#
+# The gate line sits in a function, at column 0: `sync-ci-gate.mjs` finds each repo's gate line
+# with an anchored regex and splices it, so its shape must not change.
 gate_result="pass"
 gate_log="$(mktemp)"
+gate_marker="$(mktemp)"                             # its mtime is the gate start
+browser_tier=true
+if node -e "process.exit(require('./package.json').scripts?.['test:browser']?0:1)" 2>/dev/null; then
+  # the repo's own runner, so the line stays portable to npm repos (Codex review)
+  if [ -f pnpm-lock.yaml ]; then browser_tier="pnpm run test:browser"; else browser_tier="npm run test:browser"; fi
+fi
+run_gate_line() {
 if ! { (pnpm run typecheck && pnpm exec eslint src && pnpm exec vitest run) </dev/null 2>&1 | tee "$gate_log"; }; then
   gate_result="fail"
 fi
+}
+[ "$skipped" = "1" ] || run_gate_line
 # `verifyDepsBeforeRun: error` makes `pnpm exec` refuse to run AT ALL when node_modules is out
 # of sync with the lockfile — the routine case in a fresh worktree, or straight after a branch
 # switch that moved pnpm-lock.yaml. Blocking the push there is correct, but reporting "fail" is
@@ -299,6 +370,21 @@ if grep -q 'ERR_PNPM_VERIFY_DEPS_BEFORE_RUN' "$gate_log" 2>/dev/null; then
   echo "ci-gate: dependencies are out of sync with pnpm-lock.yaml — no check ran, so nothing was reported to the hub. Run \`pnpm install\` and $retry." >&2
 fi
 rm -f "$gate_log"
+if [ "$conformance" = "1" ] && [ "$gate_result" = "pass" ]; then
+  report_json=".agent-surface/vitest.json"
+  if [ "$skipped" = "1" ]; then
+    report_json="$stored_vitest"
+  elif [ ! -f "$report_json" ] || [ "$gate_marker" -nt "$report_json" ]; then
+    echo "  ^ agent-surface: $report_json is missing or older than this gate run — does vitest.config add the json reporter when VITEST_JSON_OUT is set?"
+    gate_result="fail"
+  fi
+  if [ "$gate_result" = "pass" ]; then
+    node src/lib/agent-surface/vendor/report.mjs --strict --vitest "$report_json" \
+      --out .agent-surface/conformance.json </dev/null \
+      || { echo "  ^ agent-surface: conformance report failed"; gate_result="fail"; }
+  fi
+fi
+rm -f "$gate_marker"
 # tree_clean is measured in step 1, BEFORE the gate — a gate that dirties the tree must not
 # be able to describe the tree it dirtied as the one it tested.
 
@@ -325,6 +411,14 @@ if [ "$gate_result" != "notrun" ] && [ -n "$head_sha" ] && [ -n "$REPO" ]; then
   printf '{"repo":"%s","sha":"%s","branch":"%s","result":"%s","tree_clean":%s,"gate_version":"%s","ran_at":"%s"}\n' \
     "$(esc "$REPO")" "$head_sha" "$(esc "$branch")" "$gate_result" "$tree_clean" "$GATE_VERSION" \
     "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$gate_log" 2>/dev/null || true
+fi
+
+# --- 3a2. ledger record: a real pass on a clean HEAD tree (never a skip, which is already there) ---
+if [ "$gate_result" = "pass" ] && [ "$skipped" = "0" ] && [ "$ledger_ok" = "1" ]; then
+  vitest_arg=()
+  [ "$conformance" = "1" ] && vitest_arg=(--vitest-json .agent-surface/vitest.json)
+  "$heavy_job" record --repo "$git_common" --tree "$head_tree" --gate "$gate_id" ${vitest_arg[@]+"${vitest_arg[@]}"} </dev/null \
+    || echo "ci-gate: could not record the pass to the heavy-job ledger (non-blocking)"
 fi
 
 # --- 3b. best-effort report to the hub (fail-open) — attestation only, never local record ---
