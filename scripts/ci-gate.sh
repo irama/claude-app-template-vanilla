@@ -108,6 +108,21 @@ if [ -n "${CI_GATE_IGNORE_UNTRACKED:-}" ] && [ -n "$porcelain" ]; then
     printf '%s\n' "$line"
   done)"
 fi
+# Inert dirt: a change only in paths heavy-job calls inert (root *.md, docs/**/*.md|html except
+# docs/agent-surface.md, .scratch/**) cannot change what the gate checks; the ledger skip below
+# already relies on that. brief-deliver writes its loader into a committed brief, so without this
+# one delivered brief left every later push unattested (books, 2026-10-24 to 10-30: six passing
+# pushes, none reported). Renames, quoted paths, untracked directories and a missing heavy-job
+# all stay dirty.
+inert_bin="$HOME/.claude/scripts/heavy-job"
+if [ -n "$porcelain" ] && [ -x "$inert_bin" ]; then
+  porcelain="$(printf '%s\n' "$porcelain" | while IFS= read -r line; do
+    path="${line:3}"
+    case "$path" in (*' -> '* | '"'* | */) printf '%s\n' "$line"; continue ;; esac
+    [ -z "$(printf '%s' "$path" | "$inert_bin" inert 2>/dev/null || echo dirty)" ] && continue
+    printf '%s\n' "$line"
+  done)"
+fi
 tree_clean="true"; [ -n "$porcelain" ] && tree_clean="false"
 # --attest has no pushed ref, so HEAD IS the subject. Everything below then treats it exactly
 # like a push of HEAD — including the dirty-tree refusal, which is the whole safety property.
